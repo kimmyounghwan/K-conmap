@@ -11877,3 +11877,45 @@ a.kn-strip:hover { border-left-color: var(--kn-a); }
    .ta-big = 게시판 · 문의 본문(150px — G289 맵톡 답글 칸과 같음) · .ta-mid = 답글 · 고치기(110px) */
 textarea.ta-big { min-height: 150px; line-height: 1.7; }
 textarea.ta-mid { min-height: 110px; line-height: 1.7; }
+
+/* ── 🏛 G808 (2026-11-20) 바로투찰 «🏛 종심제 계산» 카드(종심카드.jsx) — 종심제 · 종합평가 공고 ── */
+.jsc-tag { font-size: 11.5px; font-weight: 800; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: 2px; white-space: nowrap; }
+.jsc-box { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.jsc-box > b, .jsc-box > summary > b { font-size: 13.5px; }
+.jsc-box > b { display: block; }
+.jsc-big { margin-top: 6px; font-size: 16px; font-weight: 800; color: var(--text); word-break: keep-all; line-height: 1.45; }
+.jsc-big small { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.jsc-won { font-size: 12.5px; color: var(--muted); font-weight: 700; margin-top: 2px; word-break: keep-all; }
+.jsc-band { position: relative; height: 36px; margin: 10px 14px 2px; }
+.jsc-bar { position: absolute; left: 0; right: 0; top: 8px; height: 8px; border-radius: 4px; background: var(--line); }
+.jsc-in { position: absolute; top: 8px; height: 8px; border-radius: 4px; background: var(--accent); opacity: .55; }
+.jsc-mid { position: absolute; top: 3px; width: 2px; height: 18px; margin-left: -1px; background: var(--accent); }
+.jsc-me { position: absolute; top: 5px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--warn); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--warn); }
+.jsc-me.out { background: var(--bad); box-shadow: 0 0 0 1px var(--bad); }
+.jsc-lab { position: absolute; top: 21px; transform: translateX(-50%); font-size: 10.5px; color: var(--muted); font-weight: 700; white-space: nowrap; }
+.jsc-inrow { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.jsc-inrow .inp { flex: 1; min-width: 0; }
+.jsc-inrow i { font-style: normal; color: var(--muted); font-weight: 700; }
+.jsc-me-row { margin-top: 6px; font-size: 12.5px; line-height: 1.6; word-break: keep-all; }
+.jsc-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.jsc-row { display: grid; grid-template-columns: 70px minmax(0, 1fr); grid-template-areas: "n a" "n p" "n s" "n w"; text-align: left; gap: 0 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); cursor: pointer; font: inherit; }
+.jsc-row .n { grid-area: n; font-weight: 800; align-self: center; font-size: 12.5px; word-break: keep-all; }
+.jsc-row .a { grid-area: a; font-weight: 800; font-size: 14.5px; }
+.jsc-row .p { grid-area: p; font-size: 11.5px; color: var(--muted); font-weight: 700; }
+.jsc-row .s { grid-area: s; font-size: 11.5px; color: var(--muted); }
+.jsc-row .w { grid-area: w; font-size: 11.5px; color: var(--bad); font-weight: 700; }
+.jsc-row:empty { display: none; }
+.jsc-row.mid { border-color: var(--accent-line); }
+.jsc-row.on { background: var(--accent-soft); border-color: var(--accent); }
+.jsc-chk summary, .jsc-why summary { cursor: pointer; font-size: 13px; word-break: keep-all; }
+.jsc-chk label { display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; line-height: 1.5; margin-top: 6px; word-break: keep-all; }
+.jsc-chk label input { margin-top: 3px; flex: none; }
+.jsc-why { margin-top: 10px; }
+.jsc-why summary { color: var(--muted); font-weight: 700; }
+.jsc-g2b { display: inline-block; margin-top: 10px; color: var(--accent); font-weight: 800; }
+@media (min-width: 900px) {
+  .jsc-rows { flex-direction: row; }
+  .jsc-row { flex: 1 1 0; grid-template-columns: minmax(0, 1fr); grid-template-areas: "n" "a" "p" "s" "w"; }
+  .jsc-row .n { align-self: start; }
+  .jsc-inrow { max-width: 420px; }
+}

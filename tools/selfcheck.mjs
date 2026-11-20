@@ -29,7 +29,7 @@ for (const c of cases) {
       heroAmt: txt('.hero .amt'),
       heroSub: txt('.hero .sub') || '',
       nogo: !!document.querySelector('.nogobox'),
-      stop: all.includes('이 공고는 계산기를 쓰면 안 됩니다'),
+      stop: all.includes('이 공고는 계산기를 쓰면 안 됩니다') || !!document.querySelector('.jsc'),   /* 🏛 G808 종심제 공고는 «🏛 종심제 계산» 카드(적격 금액은 안 냄) */
       rateLine: (all.match(/투찰률\s*[\d.]+%\s*·\s*예정가격\s*[\d,]+원/) || [''])[0],
       sjLine: (all.match(/분석 사정률\s*[\d.]+%/) || [''])[0],
       scored: document.querySelector('.scored')?.className || '',

@@ -1,0 +1,91 @@
+/* 🏛 G808 (2026-11-20) 바로투찰 «🏛 종심제 계산» 카드의 셈 — 바로투찰 종심제 기획 ⑤
+ *   소장님 「보내고, 바로투질 작업해줘」 · 기획서 «건설맵이 만들 화면» ① 균형가격 예상 ② 내 금액의 가격점수 ③ 금액 고르기
+ *   자료: /data/jongsim.json(종심예측.py — 묶음별 균형÷기초 분포 · 맞춰 보기 · 보임) · 점수 식: lib/종심셈.js(예규 [별표 3] · 조달청 [별표 4])
+ *   ⚠️ 묶음 열쇠 · 금액대 · 기관 첫 낱말은 종심예측.py 와 같은 셈(시험_종심고르기.mjs 가 파이썬과 대 봄).
+ *   ⚠️ 균형가격은 «건설맵이 공개 금액으로 다시 셈한 근사값» 의 분포 — 화면에도 그렇게 적음.
+ */
+import { 종심가격점수 } from './종심셈.js'
+
+export const 점들 = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95]
+export const 갈래글 = { 간이형: '간이형', 일반: '일반', 실적제한: '실적제한', 고난도: '고난이도', 지방종평: '지방 종합평가', 종심: '종합심사' }
+
+/** 추정가격 → 0: 300억 미만 · 1: 300 ~ 500억 · 2: 500 ~ 1000억 · 3: 1000억 이상 · 모르면 -1(종심예측.py 금액대) */
+export function 금액대(est) {
+  const e = Number(est) || 0
+  if (e <= 0) return -1
+  return e < 3e10 ? 0 : e < 5e10 ? 1 : e < 1e11 ? 2 : 3
+}
+
+/** 발주기관 첫 낱말(종심예측.py 기관) */
+export function 기관첫(inst) {
+  const s = String(inst || '').trim()
+  return s ? s.split(/\s+/)[0].slice(0, 20) : ''
+}
+
+/** 좁은 묶음 → 넓은 묶음 열쇠(종심예측.py 열쇠들 · 열쇠글) */
+export function 묶음열쇠들(kind, inst, est, main) {
+  const k = kind || '종심', i = 기관첫(inst), b = 금액대(est), m = String(main || '').slice(0, 30)
+  return [`${k}|${i}|${b}|${m}`, `${k}|${i}|${b}`, `${k}|${i}`, `${k}`, '전체']
+}
+
+/** 판(jongsim.json)에서 이 공고에 쓸 묶음 — 표본이 넉넉한 가장 좁은 묶음 · 없으면 전체(표본 적음일 수 있음) · 자료가 없으면 null */
+export function 묶음고르기(판, kind, inst, est, main) {
+  const 묶음 = (판 && 판.묶음) || {}
+  for (const 열쇠 of 묶음열쇠들(kind, inst, est, main)) {
+    const s = 묶음[열쇠]
+    if (s && !s.표본적음 && Array.isArray(s.d) && s.d.length === 점들.length) return { ...s, 열쇠 }
+  }
+  const s = 묶음['전체']
+  return s && Array.isArray(s.d) && s.d.length === 점들.length ? { ...s, 열쇠: '전체' } : null
+}
+
+/** 예정가격 어림 = 기초금액 × 예정÷기초 가운데(y50 · 없으면 100%) — 원 아래 버림 */
+export function 예정어림(통, base) {
+  const y = Number(통 && 통.y50) || 100
+  return Math.floor((Number(base) || 0) * y / 100)
+}
+
+/** 투찰 금액 T 의 가격점수 — 가운데(50분위 균형) · 80% 띠 안 최저(10 · 90분위 끝) · 기대(열아홉 점 평균) */
+export function 점수보기(T, 통, base, 배점) {
+  const b = Number(base) || 0, t = Number(T) || 0
+  if (!통 || b <= 0 || t <= 0) return null
+  const Y = 예정어림(통, b)
+  const 점 = (p) => {
+    const s = 종심가격점수(t, Math.floor(b * p / 100), Y, 배점)
+    return s == null ? 0 : s
+  }
+  const 기대 = 통.d.reduce((a, p) => a + 점(p), 0) / 통.d.length
+  return { 가운데: 점(통.q50), 최저: Math.min(점(통.q10), 점(통.q90)), 기대: Math.round(기대 * 1000) / 1000, 율: (t * 100) / b, 예정: Y }
+}
+
+/** 금액 고르기 세 줄 — 가운데(기대 점수가 가장 높은 금액) · 조금 낮게(25분위) · 조금 높게(75분위) · 금액은 천 원 아래 버림 */
+export function 세줄(통, base, 배점) {
+  const b = Number(base) || 0
+  if (!통 || b <= 0) return []
+  const 천 = (p) => Math.floor((b * p) / 100 / 1000) * 1000
+  let 좋은 = null
+  const 아래 = 통.d[0] - 1, 위 = 통.d[통.d.length - 1] + 1
+  for (let p = 아래; p <= 위 + 1e-9; p += 0.005) {
+    const T = 천(p)
+    const s = 점수보기(T, 통, b, 배점)
+    if (s && (!좋은 || s.기대 > 좋은.기대 + 1e-9)) 좋은 = { T, ...s }
+  }
+  if (!좋은) return []
+  const 줄 = (이름, T) => ({ 이름, T, ...점수보기(T, 통, b, 배점) })
+  return [줄('조금 낮게', 천(통.d[4])), { 이름: '가운데', ...좋은 }, 줄('조금 높게', 천(통.d[14]))]
+}
+
+/** 제13조③ — 예정가격 100억 미만이면 «예정가격 중 순공사원가»(순공사원가 × 예정 ÷ 기초 · 올림)의 98%(올림) 미만은 낙찰 제외 · 해당 없으면 0 */
+export function 순공사하한(pc, 예정, base) {
+  const p = Number(pc) || 0, y = Number(예정) || 0, b = Number(base) || 0
+  if (p <= 0 || y <= 0 || b <= 0 || y >= 1e10) return 0
+  return Math.ceil(Math.ceil((p * y) / b) * 0.98)
+}
+
+/** 동점 틀(예규 제13조② — 종합심사 점수가 같고 공사수행능력 + 사회적책임 합도 같으면) — 예상 균형가격이 예정가격의 88% 이상이면 «입찰금액이 낮은 자» · 아니면 «균형가격에 근접한 자» */
+export function 동점글(통) {
+  if (!통) return ''
+  const r = (Number(통.q50) || 0) / (Number(통.y50) || 100)
+  return r >= 0.88 ? '종합점수 · 공사수행능력 + 사회적책임 점수까지 같으면 — 예상 균형가격이 예정가격의 88% 이상이라 입찰금액이 낮은 쪽이 앞섭니다(제13조②)'
+    : '종합점수 · 공사수행능력 + 사회적책임 점수까지 같으면 입찰금액이 균형가격에 더 가까운 쪽이 앞섭니다(제13조②)'
+}
