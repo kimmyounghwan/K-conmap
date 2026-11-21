@@ -11893,6 +11893,16 @@ textarea.ta-mid { min-height: 110px; line-height: 1.7; }
 .jsc-me { position: absolute; top: 5px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--warn); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--warn); }
 .jsc-me.out { background: var(--bad); box-shadow: 0 0 0 1px var(--bad); }
 .jsc-lab { position: absolute; top: 21px; transform: translateX(-50%); font-size: 10.5px; color: var(--muted); font-weight: 700; white-space: nowrap; }
+/* 🛠 G815 확률 막대(0.5%p 칸마다 지난 개찰 비율 — 많이 나온 1%p 진하게) — 띠 위에 */
+.jsc-band.has-h { height: 70px; }
+.jsc-band.has-h .jsc-bar, .jsc-band.has-h .jsc-in { top: 42px; }
+.jsc-band.has-h .jsc-mid { top: 37px; }
+.jsc-band.has-h .jsc-me { top: 39px; }
+.jsc-band.has-h .jsc-lab { top: 55px; }
+.jsc-hist { position: absolute; left: 0; right: 0; top: 0; height: 32px; }
+.jsc-hist i { position: absolute; bottom: 0; background: var(--accent); opacity: .22; border-radius: 2px 2px 0 0; }
+.jsc-hist i.on { opacity: .75; }
+.jsc-mode { margin-top: 4px; }
 .jsc-inrow { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 .jsc-inrow .inp { flex: 1; min-width: 0; }
 .jsc-inrow i { font-style: normal; color: var(--muted); font-weight: 700; }
@@ -11906,6 +11916,8 @@ textarea.ta-mid { min-height: 110px; line-height: 1.7; }
 .jsc-row .w { grid-area: w; font-size: 11.5px; color: var(--bad); font-weight: 700; }
 .jsc-row:empty { display: none; }
 .jsc-row.mid { border-color: var(--accent-line); }
+.jsc-best { display: block; font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--accent); margin-top: 2px; white-space: nowrap; }   /* 🛠 G815 세 줄 중 기대 최고 */
+.jsc-nw { white-space: nowrap; }   /* 🛠 G815 «열에 아홉 ○점 이상» · «⚠️ 0점 위험 ○%» 한 마디는 안 쪼갬 */
 .jsc-row.on { background: var(--accent-soft); border-color: var(--accent); }
 .jsc-chk summary, .jsc-why summary { cursor: pointer; font-size: 13px; word-break: keep-all; }
 .jsc-chk label { display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; line-height: 1.5; margin-top: 6px; word-break: keep-all; }

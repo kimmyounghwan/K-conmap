@@ -7,20 +7,42 @@
  *   🛠 G812 (11-21) 소장님 «넓힌 범위로 열기» — 90% 범위(lo ~ hi) · 매일 맞춰 보기(그날 앞 자료로 그날) · 갈래마다 15건 · 75% 넘는 갈래만 «예상»(lib/종심고르기.js 예상열림) ·
  *     화면에 그 갈래의 실제 적중률을 같이 적음 · 떨어지면 저절로 «지난 개찰 분포(참고)».
  *     못 넘었으면 «지난 개찰 분포(참고)» 만 · 자료가 없으면 «자료 모으는 중».
+ *   🛠 G815 (11-21 소장님 「단점 모두 보안해서 다시 만들어」 · 「타사이트와 구별되지만 정확하면서 설명도 논리적이어야 해」)
+ *     ① 갈래마다 짧은(80% 가 든 가장 좁은) · 고른(위 · 아래 5% 뺀) 범위 · 범위 뜻을 글로 · 확률 막대 · «가장 많이 나온 자리»
+ *     ②③ 기대 · 열에 아홉 · 0점 위험 = 지난 3개월 맞춰 보기 «어긋남»(lib/종심고르기.js 갈래잔)으로 셈 — 지난 분포만으로 셈하면 일반 기대가 실제보다 8.7점 높았음
+ *     ③ 가운데 줄 이름 «기준»(가운데 절반 안에서 기대 최고) · 세 줄 중 기대가 가장 높은 줄에 «★ 기대 최고»
  *   · 점수 식: lib/종심셈.js(예규 [별표 3] · 조달청 [별표 4]) · 셈: lib/종심고르기.js
  *   · ⚠️ 공사수행능력 · 사회적책임 점수는 회사마다 달라 건설맵이 매기지 않음 · «낙찰 보장» 같은 말 안 씀.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getJSON } from './lib/data.js'
 import { won } from './lib/fmt.js'
 import { 금액뿐 } from './lib/금액읽기.js'
 import { 종심갈래 } from './lib/종심셈.js'
-import { 갈래글, 묶음고르기, 점수보기, 세줄, 예정어림, 순공사하한, 동점글, 범위끝, 갈래성적, 예상열림 } from './lib/종심고르기.js'
+import { 갈래글, 묶음고르기, 점수보기, 세줄, 예정어림, 순공사하한, 동점글, 범위끝, 갈래성적, 예상열림, 갈래구간, 많이나온곳, 갈래잔 } from './lib/종심고르기.js'
 import { 세기 } from './lib/받은수.jsx'
 
 const 퍼 = (v, 자리 = 2) => (v == null || !Number.isFinite(Number(v)) ? '-' : `${Number(v).toFixed(자리)}%`)
 const 점 = (v) => (v == null || !Number.isFinite(Number(v)) ? '-' : Number(v).toFixed(3))
+const 점1 = (v) => (v == null || !Number.isFinite(Number(v)) ? '-' : Number(v).toFixed(1))   /* 🛠 G815 기대 · 열에 아홉 · 가장 낮게 = 어림이라 소수 한 자리 */
+/** 🛠 G815 기대 옆 — 열에 아홉(0 이 아니면) · 0점 위험(0점이 있으면) · 0점이 없고 아주 낮은 경우가 있으면 «가장 낮게»(기대가 열에 아홉보다 낮아 보이는 까닭) */
+function 위험들(s, 은 = '') {
+  if (!s) return []
+  const 글 = []
+  if (s.아홉 > 0) 글.push(`열에 아홉${은} ${점1(s.아홉)}점 이상`)
+  if (s.영 > 0) 글.push(`⚠️ 0점 위험 ${Math.max(1, Math.round(s.영 * 100))}%`)
+  else if (s.바닥 != null && s.아홉 != null && s.바닥 < s.아홉 - 0.05) 글.push(`가장 낮게 ${점1(s.바닥)}점`)
+  return 글
+}
+/** 화면 — « · » 앞뒤에서만 줄이 꺾이게(한 마디는 안 쪼갬) */
+const 위험칸 = (s, 은) => 위험들(s, 은).map((t, i) => <Fragment key={i}>{' · '}<span className="jsc-nw">{t}</span></Fragment>)
+/** 🛠 G815 범위 뜻 — 짧은(지난 개찰 80% 가 든 가장 좁은 범위) · 고른(위 · 아래 5%씩 뺀) · 옛 판(10 · 90분위) */
+function 범위뜻(판, 통, 구간) {
+  const 기 = (판 && 판.기준) || {}
+  if (구간 === '짧은' && 통.sa != null) return ` 중 ${Math.round((Number(기.짧은몫) || 0.8) * 100)}%가 들어간 가장 좁은 범위`
+  return 통.lo != null ? `에서 위 · 아래 ${(Array.isArray(기.범위) && 기.범위[0]) || 5}%씩 뺀 범위` : '에서 위 · 아래 10%씩 뺀 범위'
+}
 const 확인줄 = [   /* 계약예규 제8조① 균형가격 셈에서 빼는 입찰(1 ~ 7 · 8 기타는 세부기준) — notes/종심제_원문.txt(11-20 크롬 세 번째) */
   '입찰서 금액과 산출내역서 금액이 같음',
   '예정가격 이하 · 예정가격의 70% 이상',
@@ -47,14 +69,26 @@ function 복사(text) {
   return ok
 }
 
-/** 띠 그림 — 5 ~ 95분위 폭 · 범위 띠(🛠 G812 90% — 범위끝) · 가운데 · 내 금액(%) */
-function 띠그림({ 통, 내율 }) {
-  const lo = 통.d[0] - 0.5, hi = 통.d[통.d.length - 1] + 0.5
-  const [끝1, 끝2] = 범위끝(통)
+/** 띠 그림 — 5 ~ 95분위 폭 · 범위 띠(🛠 G812 90% — 범위끝 · 🛠 G815 갈래 구간) · 가운데 · 내 금액(%) · 🛠 G815 확률 막대(0.5%p 칸 — 많이 나온 곳 진하게) */
+function 띠그림({ 통, 내율, 구간 = '고른' }) {
+  const h = 통.h && Array.isArray(통.h.p) && 통.h.p.length ? 통.h : null
+  const lo = Math.min(통.d[0] - 0.5, h ? h.s : Infinity), hi = Math.max(통.d[통.d.length - 1] + 0.5, h ? h.s + h.p.length * (h.w || 0.5) : -Infinity)
+  const [끝1, 끝2] = 범위끝(통, 구간)
+  const 많 = 많이나온곳(통)
+  const 큰 = h ? Math.max(...h.p, 0.0001) : 1
   const x = (p) => `${Math.max(0, Math.min(100, ((p - lo) * 100) / (hi - lo)))}%`
   const 밖 = 내율 != null && (내율 < lo || 내율 > hi)
   return (
-    <div className="jsc-band" aria-hidden="true">
+    <div className={'jsc-band' + (h ? ' has-h' : '')} aria-hidden="true">
+      {h && (
+        <div className="jsc-hist">
+          {h.p.map((v, i) => {
+            const 칸 = h.s + i * (h.w || 0.5)
+            const 진 = 많 && 칸 >= 많.아래 - 1e-9 && 칸 < 많.위 - 1e-9
+            return <i key={i} className={진 ? 'on' : ''} style={{ left: x(칸), width: `calc(${x(칸 + (h.w || 0.5))} - ${x(칸)} - 1px)`, height: `${Math.max(2, Math.round((v / 큰) * 30))}px` }} />
+          })}
+        </div>
+      )}
       <div className="jsc-bar" />
       <div className="jsc-in" style={{ left: x(끝1), width: `calc(${x(끝2)} - ${x(끝1)})` }} />
       <div className="jsc-mid" style={{ left: x(통.q50) }} />
@@ -98,12 +132,18 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
   const 통 = useMemo(() => (판 && 갈 ? 묶음고르기(판, 갈[0], 공고?.inst, est || 공고?.est, 공고?.main) : null), [판, 갈?.[0], 공고?.inst, 공고?.main, est])   // eslint-disable-line react-hooks/exhaustive-deps
   const 보임 = 예상열림(판, 통, 갈?.[0])   /* 🛠 G812 성적 확인 + 이 갈래가 매일 맞춰 보기 15건 · 75% 이상(옛 판은 전체 보임) */
   const 갈성 = 판 && 갈 ? 갈래성적(판, 갈[0]) : null
-  const [끝1, 끝2] = 범위끝(통)
-  const 범위이름 = 통 && 통.lo != null ? '90%' : '80%'
+  const 구간 = 판 && 갈 ? 갈래구간(판, 갈[0]) : '고른'   /* 🛠 G815 짧은 · 고른 */
+  const 잔 = useMemo(() => (판 && 갈 ? 갈래잔(판, 갈[0]) : null), [판, 갈?.[0]])   // eslint-disable-line react-hooks/exhaustive-deps
+  const [끝1, 끝2] = 범위끝(통, 구간)
+  const 많 = 많이나온곳(통)
   const 배점 = 갈 ? 갈[1] : 50
-  const 줄들 = useMemo(() => (보임 ? 세줄(통, base, 배점) : []), [보임, 통, base, 배점])
+  const 줄들 = useMemo(() => (보임 ? 세줄(통, base, 배점, 잔) : []), [보임, 통, base, 배점, 잔])
+  const 최고줄 = 줄들.length ? 줄들.reduce((m, z) => (z.기대 > m.기대 + 1e-9 ? z : m), 줄들[1] || 줄들[0]).이름 : ''   /* 🛠 G815 세 줄 중 기대 최고 */
   const 내금 = 금액뿐(내) || 0
-  const 내점 = 보임 && 내금 > 0 ? 점수보기(내금, 통, base, 배점) : null
+  const 내점 = 보임 && 내금 > 0 ? 점수보기(내금, 통, base, 배점, 구간, 잔) : null
+  const 보인것 = [...줄들, ...(내점 ? [내점] : [])]
+  const 영있음 = 보인것.some((z) => z.영 > 0)
+  const 바닥있음 = 보인것.some((z) => 위험들(z).some((t) => /가장 낮게/.test(t)))
   const 예정 = 통 ? 예정어림(통, base) : 0
   const 순하 = 통 ? 순공사하한(공고?.pc, 예정, base) : 0
   const 맞 = 판?.맞춤 || {}
@@ -137,9 +177,10 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
         ) : !보임 ? (
           <div className="jsc-box">
             <b>① 지난 개찰 분포(참고 · 예상 아님)</b>
-            <div className="jsc-big">기초금액의 {퍼(끝1)} ~ {퍼(끝2)} <small>(가운데 {퍼(통.q50)} · {통.n}건)</small></div>
+            <div className="jsc-big">기초금액의 {퍼(끝1)} ~ {퍼(끝2)} <small>(가운데 {퍼(통.q50)} · {통.n}건 · «균형가격 ÷ 기초금액»{범위뜻(판, 통, 구간)})</small></div>
             {통.표본적음 && <div className="note sm jsc-thin">⚠️ 이 갈래({갈래글[갈[0]] || 갈[0]})는 지난 개찰이 {통.n}건뿐(20건 미만)이라 참고만 하세요 — 자료가 더 모이면 저절로 바뀝니다.</div>}
-            <띠그림 통={통} 내율={null} />
+            <띠그림 통={통} 내율={null} 구간={구간} />
+            {많 && <div className="note sm jsc-mode">가장 많이 나온 자리 <b>{퍼(많.아래, 1)} ~ {퍼(많.위, 1)}</b> — 비슷한 지난 개찰의 {Math.round(많.몫 * 100)}%</div>}
             <div className="note sm">
               {안보임까닭(판, 통, 갈성, 갈래글[갈[0]] || 갈[0])}{' '}금액 고르기는 {통.표본적음 ? '자료가 모이고 ' : ''}기준을 넘으면 뜹니다.
             </div>
@@ -150,9 +191,10 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
               <b>① 균형가격 예상</b>
               <div className="jsc-big">기초금액의 {퍼(끝1)} ~ {퍼(끝2)} <small>(가운데 {퍼(통.q50)})</small></div>
               <div className="jsc-won">{won(Math.floor(base * 끝1 / 100))} ~ {won(Math.floor(base * 끝2 / 100))}</div>
-              <띠그림 통={통} 내율={내금 > 0 ? (내금 * 100) / base : null} />
-              <div className="note sm">지난 종심제 개찰 {통.n}건{통.열쇠 !== '전체' ? `(${통.열쇠.split('|').filter((x) => x && x !== '-1').slice(0, 2).join(' · ')}${통.규칙뒤 ? ' · 같은 금액 규칙 뒤' : ''})` : ''}의 «균형가격 ÷ 기초금액» {범위이름} 범위 ·
-                {갈성 ? <> 지난 3개월을 매일 그날 앞 자료로 맞춰 보니 이 갈래 {갈성.적중}/{갈성.n}건 들어맞음({갈성.율}%).</> : <> 마지막 3개월 맞춰 보기 {맞.적중}/{맞.n}건 들어맞음({맞.율}%).</>}</div>
+              <띠그림 통={통} 내율={내금 > 0 ? (내금 * 100) / base : null} 구간={구간} />
+              {많 && <div className="note sm jsc-mode">가장 많이 나온 자리 <b>{퍼(많.아래, 1)} ~ {퍼(많.위, 1)}</b> — 비슷한 지난 개찰의 {Math.round(많.몫 * 100)}%</div>}
+              <div className="note sm">지난 종심제 개찰 {통.n}건{통.열쇠 !== '전체' ? `(${통.열쇠.split('|').filter((x) => x && x !== '-1').slice(0, 2).join(' · ')}${통.규칙뒤 ? ' · 같은 금액 규칙 뒤' : ''})` : ''}의 «균형가격 ÷ 기초금액»{범위뜻(판, 통, 구간)}입니다.
+                {갈성 ? <> 지난 3개월을 매일 그날 앞 자료로 맞춰 보니 이 갈래 <b>{갈성.n}건 중 {갈성.적중}건({갈성.율}%)</b>이 이 범위 안에 들었습니다.</> : <> 마지막 3개월 맞춰 보기 {맞.적중}/{맞.n}건 들어맞음({맞.율}%).</>}</div>
             </div>
 
             <div className="jsc-box">
@@ -163,7 +205,7 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
               </div>
               {내금 > 0 && 내점 && (
                 <div className="jsc-me-row">
-                  기초금액의 <b>{퍼(내점.율, 3)}</b> · 예상 가격점수 <b>{점(내점.가운데)}</b>점(가운데 기준) · 범위 끝에서 {점(내점.최저)}점 · 기대 {점(내점.기대)}점
+                  기초금액의 <b>{퍼(내점.율, 3)}</b> · 기대 가격점수 <b>{점1(내점.기대)}</b>점{위험칸(내점, '은')} · 균형가격이 가운데({퍼(통.q50)})로 나오면 {점(내점.가운데)}점
                   {순하 > 0 && 내금 < 순하 && <div className="nm-warn">⚠️ 예정가격 중 순공사원가(재료비 · 노무비 · 경비 + 부가세)의 98%(약 {won(순하)}) 아래 — 예정가격 100억 미만 공사는 낙찰자에서 제외됩니다(제13조③).</div>}
                 </div>
               )}
@@ -173,18 +215,21 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
               <b>③ 금액 고르기</b>
               <div className="jsc-rows" role="list">
                 {줄들.map((줄) => (
-                  <button key={줄.이름} type="button" role="listitem" className={'jsc-row' + (고른 === 줄.이름 ? ' on' : '') + (줄.이름 === '가운데' ? ' mid' : '')} onClick={() => 고르기(줄)}>
-                    <span className="n">{줄.이름}</span>
+                  <button key={줄.이름} type="button" role="listitem" className={'jsc-row' + (고른 === 줄.이름 ? ' on' : '') + (줄.이름 === '기준' ? ' mid' : '')} onClick={() => 고르기(줄)}>
+                    <span className="n">{줄.이름}{최고줄 === 줄.이름 && <em className="jsc-best">★ 기대 최고</em>}</span>
                     <span className="a">{won(줄.T)}</span>
                     <span className="p">기초의 {퍼(줄.율, 3)}</span>
-                    <span className="s">기대 {점(줄.기대)}점 · 끝 {점(줄.최저)}점</span>
+                    <span className="s">기대 {점1(줄.기대)}점{위험칸(줄)}</span>
                     {순하 > 0 && 줄.T < 순하 && <span className="w">⚠️ 순공사원가 98% 아래(제13조③)</span>}
                   </button>
                 ))}
               </div>
               {됨 && <div className="note sm" role="status">📋 {됨}</div>}
-              <div className="note sm">«기대» = 균형가격이 예상 띠 어디에 오든 평균 점수 · «끝» = {범위이름} 범위 끝에 왔을 때 점수 · 예정가격은 지난 개찰의 «예정 ÷ 기초» 가운데로 어림({won(예정)}).
-                {' '}{동점글(통)}.</div>
+              <div className="note sm">«기준» = 지난 개찰 가운데 절반(25 ~ 75%) 안에서 기대가 가장 높은 금액 · «★ 기대 최고» = 세 줄 중 기대가 가장 높은 줄.</div>
+              <div className="note sm jsc-how">«기대» = 평균 점수 · «열에 아홉» = 10번 중 9번은 이 점수 이상{영있음 ? ' · «0점 위험» = 0점이 나오는 비율' : ''}{바닥있음 ? ' · «가장 낮게» = 그중 가장 낮은 점수' : ''} —{' '}
+                {잔 ? `지난 3개월 매일 맞춰 보기에서 균형가격 · 예정가격이 예상과 어긋났던 ${잔.length}건을 이 공고에 그대로 넣어 셈했습니다.` : '균형가격이 지난 개찰처럼 나온다고 보고 셈했습니다.'}
+                {영있음 ? ' 0점은 균형가격보다 «예정가격 − 균형가격» 이상 낮게 쓰면 나옵니다(균형가격이 예정가격 가까이 나올 때).' : ''}
+                {' '}예정가격은 지난 개찰의 «예정 ÷ 기초» 가운데로 어림({won(예정)}) · {동점글(통)}.</div>
             </div>
           </>
         )}

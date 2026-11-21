@@ -27,9 +27,17 @@
 🛠 G813 (2026-11-21) 「종심제 오늘중 마무리」 ② 개찰 뒤 «실제 균형가격» — web/public/data/jongsim_open.json
   공고번호 → [개찰일시, 갈래, 배점, 기초, 균형(근사), 예정(근사), 받은 수, 셈에 든 수] — 공고 한 장 · 1순위 펼침 · 바로투찰(개찰 뒤)이 읽음(종심개찰.jsx)
   ⚠️ 업체 이름 · 사업자번호 · 공사명 없음(원본에도 없음) · 줄들() 과 같은 거름(기초 · 균형 · 60 ~ 120% · 개찰일시).
+
+🛠 G815 (2026-11-21) 소장님 「넓힌 범위로 열기 하면 단점이 뭐지?」 → 「단점 모두 보완해서 다시 만들어」
+  · 범위가 넓다 → «짧은 구간»(지난 개찰의 80% 가 드는 가장 좁은 구간 — sa ~ sb)도 셈 · 갈래마다 매일 맞춰 보기로 고름:
+    짧은 구간이 75% 넘고 더 좁으면 짧은 구간(간이형 — 6.4 → 3.3%p · 적중 85 → 89%) · 아니면 고른 구간(5 ~ 95분위 · 일반 · 지방종평)
+  · 확률 막대(h — 0.5%p 칸마다 지난 개찰 비율) · 이름(«90%») 대신 실제 적중률만 화면에
+  · 열고 닫기 따로(어제 상태 기억 — data/seed/jongsim_state.json · 워크플로가 data/seed 를 커밋): 닫힌 갈래는 75% 이상에 열고 · 열린 갈래는 70% 밑에서만 닫음
+  · 최근 개찰 무게(반감 120 · 180 · 365일)는 시험해 보니 나아지지 않아(80.3 ~ 81.8%) 안 씀 — 규칙 바뀐 뒤 줄 먼저(G812)로 충분
 """
 import io
 import json
+import math
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -44,6 +52,9 @@ KST = timezone(timedelta(hours=9))
 검증최소 = 30           # 맞춰 본 건수가 이보다 적으면 아직 안 보임(전체 «보임»)
 갈래검증최소 = 15       # 🛠 G812 갈래마다 맞춰 본 건수가 이보다 적으면 그 갈래는 «예상» 을 안 냄
 뒤달 = 3                # 마지막 3개월을 빼 두고 맞춰 봄
+짧은몫 = 0.8            # 🛠 G815 «짧은 구간» = 지난 개찰의 80% 가 드는 가장 좁은 구간
+닫기기준 = 70.0         # 🛠 G815 열린 갈래는 이 밑으로 떨어져야 닫음(75% 에 열고 · 70% 밑에 닫음 — 날마다 열렸다 닫혔다 안 하게)
+막대폭 = 0.5            # 🛠 G815 확률 막대 칸 폭(%p)
 성적확인 = True          # 🏛 G808 «성적을 숫자로 보여 드림 → 확인» — 🛠 G812 11-21 소장님 «넓힌 범위로 열기» 로 확인(갈래마다 매일 기준을 넘을 때만 열림)
 점들 = tuple(range(5, 100, 5))   # 5 ~ 95분위 열아홉 점(기대 가격점수 셈)
 갈래들 = ("간이형", "일반", "실적제한", "고난도", "지방종평", "종심")
@@ -124,14 +135,45 @@ def 맞는가(r, t):
     return (r.get("kind"), r.get("inst"), r.get("band", -1), r.get("main"))[:len(t)] == tuple(t)
 
 
-def 통계(rs):
+def 짧은구간(xs, 몫=짧은몫):
+    """🛠 G815 지난 개찰의 몫(80%)이 드는 가장 좁은 구간 [아래, 위] — 한쪽으로 긴 분포(간이형 — 드물게 92% 대)에서 고른 구간보다 훨씬 좁음 · 2건 미만이면 None"""
+    a = sorted(xs)
+    n = len(a)
+    if n < 2:
+        return None
+    k = max(2, math.ceil(몫 * n - 1e-9))
+    best = None
+    for i in range(0, n - k + 1):
+        w = a[i + k - 1] - a[i]
+        if best is None or w < best[1] - best[0] - 1e-12:
+            best = (a[i], a[i + k - 1])
+    return best
+
+
+def 막대(brs, lo, hi):
+    """🛠 G815 확률 막대 — 0.5%p 칸마다 지난 개찰 비율(셋째자리) · 칸은 범위 양끝 0.5%p 바깥까지 · 칸 밖 값은 끝 칸에 넣음"""
+    if not brs or lo is None or hi is None:
+        return None
+    s = math.floor(lo / 막대폭) * 막대폭 - 막대폭
+    e = math.ceil(hi / 막대폭) * 막대폭 + 막대폭
+    k = max(1, int(round((e - s) / 막대폭)))
+    칸 = [0] * k
+    for b in brs:
+        칸[min(k - 1, max(0, int((b - s) // 막대폭)))] += 1
+    return {"s": round(s, 2), "w": 막대폭, "p": [round(x / len(brs), 3) for x in 칸]}
+
+
+def 통계(rs, 기준=None):   # 기준(날)은 예전 부름과 맞추려고 받기만 함(G815 최근 무게는 안 씀)
     brs = [r["br"] for r in rs]
     yrs = [r["yr"] for r in rs if r.get("yr")]
-    return {"n": len(rs), "lo": 분위(brs, 아래), "q10": 분위(brs, 10), "q50": 분위(brs, 50), "q90": 분위(brs, 90), "hi": 분위(brs, 위),
-            "y50": 분위(yrs, 50) if yrs else None, "d": [분위(brs, p) for p in 점들]}
+    lo, hi = 분위(brs, 아래), 분위(brs, 위)
+    짧 = 짧은구간(brs)
+    return {"n": len(rs), "lo": lo, "q10": 분위(brs, 10), "q50": 분위(brs, 50), "q90": 분위(brs, 90), "hi": hi,
+            "sa": 짧[0] if 짧 else lo, "sb": 짧[1] if 짧 else hi,
+            "y50": 분위(yrs, 50) if yrs else None, "d": [분위(brs, p) for p in 점들], "h": 막대(brs, min(lo, 짧[0]) if 짧 else lo, max(hi, 짧[1]) if 짧 else hi)}
 
 
-def 예측(학습, 대상, 최소=최소표본):
+def 예측(학습, 대상, 최소=최소표본, 기준=None):
     """대상(공고 — kind · inst · band · main · sm)에 맞는 가장 좁은 묶음(표본 최소 이상)의 통계 + 묶음 이름
        · 🛠 G812 대상이 규칙 뒤(sm)면 규칙 뒤 줄로 먼저(좁은 → 넓은) · 모자라면 모든 줄로(좁은 → 넓은) — 화면(lib/종심고르기.js 묶음고르기)과 같은 차례
        · 갈래까지 넓혀도 모자라면 그 갈래 통계에 표본적음 True(갈래 자료가 아예 없으면 None) — 전체로는 안 넓힘(G809)"""
@@ -141,13 +183,13 @@ def 예측(학습, 대상, 최소=최소표본):
         for t in ts:
             rs = [r for r in 모음 if 맞는가(r, t)]
             if len(rs) >= 최소:
-                s = 통계(rs)
+                s = 통계(rs, 기준)
                 s.update({"묶음": 열쇠글(t), "표본적음": False, "규칙뒤": 뒤})
                 return s
     rs = [r for r in 학습 if 맞는가(r, ts[-1])]
     if not rs:
         return None
-    s = 통계(rs)
+    s = 통계(rs, 기준)
     s.update({"묶음": 열쇠글(ts[-1]), "표본적음": True, "규칙뒤": False})
     return s
 
@@ -161,7 +203,12 @@ def _달빼기(dt, 달):
 
 def 맞춰보기(rows, 뒤=뒤달, 최소=최소표본):
     """🛠 G812 «매일» 맞춰 보기 — 마지막 뒤(3)개월의 개찰을 하나씩, 그날 «앞» 개찰로만 예측(사이트가 날마다 다시 굽는 것과 같음 · 그날 것은 안 섞임)
-       → 90% 범위(lo ~ hi) 적중률 · 가운데 오차(%p) · 갈래별(건수 · 적중 · 율 · 평균 폭) · 줄마다 한 줄"""
+       → 고른 범위(5 ~ 95분위 · lo ~ hi) 적중률 · 가운데 오차(%p) · 갈래별(건수 · 적중 · 율 · 평균 폭) · 줄마다 한 줄
+       🛠 G815 짧은 구간(sa ~ sb)도 같이 맞춰 봄 → 갈래마다 «구간»(짧은 · 고른) 고름: 짧은 구간이 75% 이상이고 더 좁으면 짧은 · 아니면 고른
+         (갈래의 적중 · 율 · 폭 = 고른 구간 것 · «고른» «짧은» 칸에 둘 다 · 줄 = [번호, 날, 갈래, lo, q50, hi, 실제, 들었나, 묶음, sa, sb, 짧은에 들었나])
+       🛠 G815 갈래마다 «잔» = 줄마다 [실제 − 예상 가운데(균형÷기초 %p), 실제 − 예상(예정÷기초 %p) | None] — 화면 «기대 · 열에 아홉» 점수를 이 어긋남으로 셈
+         (11-21 실제 자료 66건: 지난 개찰 분포 열아홉 점만으로 셈하면 기대가 실제보다 평균 5.0점(일반 8.7점) 높고 0점 위험을 3%로 봤으나 실제 12%
+          → 어긋남으로 셈하면 기대 43.4 · 실제 43.8점 · 0점 위험 11.6% · 실제 12.1%)"""
     if not rows:
         return {"n": 0, "적중": 0, "율": None, "오차": None, "자름": None, "학습": 0, "줄": [], "갈래": {}, "방식": "매일"}
     끝 = max(r["dt"] for r in rows)
@@ -170,22 +217,32 @@ def 맞춰보기(rows, 뒤=뒤달, 최소=최소표본):
     줄, 오차들, 갈래 = [], [], {}
     for r in 시험:
         날 = r["dt"][:10]
-        p = 예측([x for x in rows if x["dt"][:10] < 날], r, 최소)
+        p = 예측([x for x in rows if x["dt"][:10] < 날], r, 최소, 날)   # 그날 앞 개찰로만(G812 매일)
         if not p or p["표본적음"]:
             continue
         든 = p["lo"] <= r["br"] <= p["hi"]
+        짧든 = p["sa"] <= r["br"] <= p["sb"]
         오차들.append(abs(r["br"] - p["q50"]))
         줄.append([r["no"], 날, r["kind"], round(p["lo"], 3), round(p["q50"], 3), round(p["hi"], 3), round(r["br"], 3), 1 if 든 else 0,
-                  p["묶음"] + (" · 규칙 뒤" if p.get("규칙뒤") else "")])
-        g = 갈래.setdefault(r["kind"], [0, 0, 0.0])
+                  p["묶음"] + (" · 규칙 뒤" if p.get("규칙뒤") else ""), round(p["sa"], 3), round(p["sb"], 3), 1 if 짧든 else 0])
+        g = 갈래.setdefault(r["kind"], [0, 0, 0.0, 0, 0.0, []])
         g[0] += 1
         g[1] += 1 if 든 else 0
         g[2] += p["hi"] - p["lo"]
+        g[3] += 1 if 짧든 else 0
+        g[4] += p["sb"] - p["sa"]
+        g[5].append([round(r["br"] - p["q50"], 3), round(r["yr"] - p["y50"], 3) if r.get("yr") and p.get("y50") else None])   # 🛠 G815 어긋남
     n = len(줄)
     맞 = sum(x[7] for x in 줄)
+    갈 = {}
+    for k, v in 갈래.items():
+        고른 = {"적중": v[1], "율": round(v[1] * 100.0 / v[0], 1), "폭": round(v[2] / v[0], 2)}
+        짧은 = {"적중": v[3], "율": round(v[3] * 100.0 / v[0], 1), "폭": round(v[4] / v[0], 2)}
+        고름 = "짧은" if 짧은["율"] >= 적중기준 and 짧은["폭"] < 고른["폭"] else "고른"
+        골 = 짧은 if 고름 == "짧은" else 고른
+        갈[k] = {"n": v[0], "적중": 골["적중"], "율": 골["율"], "폭": 골["폭"], "구간": 고름, "고른": 고른, "짧은": 짧은, "잔": v[5]}
     return {"n": n, "적중": 맞, "율": round(맞 * 100.0 / n, 1) if n else None, "오차": round(분위(오차들, 50), 3) if 오차들 else None,
-            "자름": 자름, "학습": sum(1 for r in rows if r["dt"][:10] < 자름), "줄": 줄, "방식": "매일",
-            "갈래": {k: {"n": v[0], "적중": v[1], "율": round(v[1] * 100.0 / v[0], 1), "폭": round(v[2] / v[0], 2)} for k, v in 갈래.items()}}
+            "자름": 자름, "학습": sum(1 for r in rows if r["dt"][:10] < 자름), "줄": 줄, "방식": "매일", "갈래": 갈}
 
 
 def _둥글게(s, 자리=3):
@@ -202,9 +259,24 @@ def _둥글게(s, 자리=3):
     return o
 
 
-def 만들기(js, now=None):
-    """화면에 낼 한 장 — 묶음마다 통계(표본 최소 이상만 · 갈래 · 전체는 늘) · 맞춰 보기 · 보임"""
+def 열림셈(갈래성적, 이전=None, 날=""):
+    """🛠 G815 갈래마다 «예상» 을 여나 — 닫힌 갈래: 15건 이상 · 75% 이상이면 엶 / 열린 갈래(어제 상태): 15건 이상 · 70% 이상이면 그대로(밑이면 닫음)
+       → (갈래보임 목록, 새 상태 {갈래: {열림, 날(바뀐 날), 율, n}})"""
+    이전 = 이전 if isinstance(이전, dict) else {}
+    상태 = {}
+    for k, v in (갈래성적 or {}).items():
+        앞 = 이전.get(k) if isinstance(이전.get(k), dict) else {}
+        열렸었나 = bool(앞.get("열림"))
+        기준 = 닫기기준 if 열렸었나 else 적중기준
+        열림 = bool(v.get("n", 0) >= 갈래검증최소 and v.get("율") is not None and v["율"] >= 기준)
+        상태[k] = {"열림": 열림, "날": 앞.get("날") if 열림 == 열렸었나 and 앞.get("날") else 날, "율": v.get("율"), "n": v.get("n")}
+    return sorted(k for k, v in 상태.items() if v["열림"]), 상태
+
+
+def 만들기(js, now=None, 이전=None):
+    """화면에 낼 한 장 — 묶음마다 통계(표본 최소 이상만 · 갈래 · 전체는 늘) · 맞춰 보기(🛠 G815 갈래마다 짧은 · 고른 구간 · 어긋남 «잔») · 보임 · 🛠 G815 어제 상태(이전)로 열고 닫기"""
     now = now or datetime.now(KST)
+    오늘 = now.strftime("%Y-%m-%d")
     rows = 줄들(js)
     묶음 = {}
     열쇠모음 = set()
@@ -217,24 +289,25 @@ def 만들기(js, now=None):
     for t in sorted(열쇠모음, key=lambda t: (len(t), [str(x) for x in t])):
         rs = [r for r in rows if 맞는가(r, t)]
         if len(rs) >= 최소표본 or len(t) <= 1:
-            s = 통계(rs)
+            s = 통계(rs, 오늘)
             s["표본적음"] = len(rs) < 최소표본
             묶음[열쇠글(t)] = _둥글게(s)
         뒤 = [r for r in rs if r.get("sm")]
         if t and len(뒤) >= 최소표본:
-            s = 통계(뒤)
+            s = 통계(뒤, 오늘)
             s["표본적음"] = False
             묶음뒤[열쇠글(t)] = _둥글게(s)
     맞 = 맞춰보기(rows)
     보임 = bool(맞["n"] >= 검증최소 and 맞["율"] is not None and 맞["율"] >= 적중기준)
-    갈래보임 = sorted(k for k, v in (맞.get("갈래") or {}).items() if v["n"] >= 갈래검증최소 and v["율"] >= 적중기준)
+    갈래보임, 상태 = 열림셈(맞.get("갈래"), 이전, 오늘)
     return {
         "_설명": "🏛 G807 종심제 균형가격 예측(균형÷기초 %) · 맞춰 보기 — 종심예측.py · 자료 data/seed/jongsim.json(건설맵이 공개 금액으로 다시 셈 · 근사값)",
         "t": now.strftime("%Y-%m-%d %H:%M"), "n": len(rows),
         "기간": [rows[0]["dt"][:10], rows[-1]["dt"][:10]] if rows else None,
         "갈래수": {k: sum(1 for r in rows if r["kind"] == k) for k in 갈래들 if any(r["kind"] == k for r in rows)},
-        "묶음": 묶음, "묶음뒤": 묶음뒤, "맞춤": 맞, "보임": 보임, "갈래보임": 갈래보임, "확인": bool(성적확인),
-        "기준": {"범위": [아래, 위], "적중": 적중기준, "검증최소": 검증최소, "갈래검증최소": 갈래검증최소, "최소표본": 최소표본, "뒤달": 뒤달, "점": list(점들), "맞춤": "매일"},
+        "묶음": 묶음, "묶음뒤": 묶음뒤, "맞춤": 맞, "보임": 보임, "갈래보임": 갈래보임, "상태": 상태, "확인": bool(성적확인),
+        "기준": {"범위": [아래, 위], "적중": 적중기준, "닫기": 닫기기준, "검증최소": 검증최소, "갈래검증최소": 갈래검증최소, "최소표본": 최소표본, "뒤달": 뒤달,
+                 "점": list(점들), "맞춤": "매일", "짧은몫": 짧은몫, "막대폭": 막대폭},
     }
 
 
@@ -271,14 +344,25 @@ def _쓰기(경로, d):
     os.replace(tmp, 경로)
 
 
-def build(out=OUT, src=SRC, log=print, now=None):
+def build(out=OUT, src=SRC, log=print, now=None, 상태경로=None):
+    """🛠 G815 상태경로(기본 = src 옆 jongsim_state.json — data/seed 라 워크플로가 커밋) — 어제 열고 닫은 것을 읽고 오늘 것을 씀"""
     try:
         with io.open(src, encoding="utf-8") as f:
             js = json.load(f)
     except FileNotFoundError:
         js = {"con": {}}
-    d = 만들기(js, now)
+    상태경로 = 상태경로 or os.path.join(os.path.dirname(src), "jongsim_state.json")
+    try:
+        with io.open(상태경로, encoding="utf-8") as f:
+            이전 = (json.load(f) or {}).get("갈래")
+    except (FileNotFoundError, ValueError):
+        이전 = None
+    d = 만들기(js, now, 이전)
     _쓰기(out, d)
+    try:
+        _쓰기(상태경로, {"_설명": "🛠 G815 종심 «예상» 갈래 열림 상태 — 종심예측.py build 가 씀(75% 에 열고 · 70% 밑에 닫음)", "t": d["t"], "갈래": d["상태"]})
+    except Exception as e:   # noqa: BLE001
+        log("🏛 종심 상태 못 씀: %s" % e)
     try:   # 🛠 G813 개찰 뒤 실제 균형가격 — 따로 한 장(예측 판이 커지지 않게) · 실패해도 예측 판은 그대로
         개 = 개찰표(js, now)
         _쓰기(os.path.join(os.path.dirname(out), "jongsim_open.json"), 개)
