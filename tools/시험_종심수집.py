@@ -64,6 +64,10 @@ ok("🎲 G817 금액넣기 — 있는 줄에 «a» 만 더함(균형가격 · �
 ok("🎲 G817 금액넣기 — 줄 없음 · 금액 1개 · 빈 것 → False(안 바꿈)", not C.금액넣기(옛줄, "X9", 전체) and not C.금액넣기({"con": {"Y": {"no": "Y"}}}, "Y", [(5, 90.0)])
    and not C.금액넣기({"con": {"Y": {"no": "Y"}}}, "Y", []) and not C.금액넣기(None, "Y", 전체))
 
+live_pc = json.loads(json.dumps(live)); live_pc["con"]["R26BK09990001"]["pc"] = "9300000000"
+js_pc = {"con": {}}; C.종심넣기(js_pc, r, live_pc, 전체)
+ok("🔧 G819 공고에 순공사원가(pc)가 있으면 줄에 «pc» · 없으면 None", js_pc["con"]["R26BK09990001"].get("pc") == 9_300_000_000 and 줄.get("pc") is None, [js_pc["con"]["R26BK09990001"].get("pc"), 줄.get("pc")])
+
 print("③ 안 넣는 것 · 같은 금액 묶는 날")
 js2 = {"con": {}}
 live2 = {"con": {"X1": {"swin": "적격심사제-추정가격이 300억원미만 100억원이상인 입찰공사(실적제한 아님, 종합공사)", "est": "15000000000"}}}

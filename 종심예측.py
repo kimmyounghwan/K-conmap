@@ -97,7 +97,7 @@ def 줄들(js):
         yr = yp * 100.0 / base if yp > 0 else None
         out.append({"no": str(no), "dt": dt, "kind": str(r.get("kind") or "종심"), "pt": r.get("pt"), "inst": 기관(r.get("inst")), "base": base,
                     "band": 금액대(r.get("est")), "main": str(r.get("main") or "")[:30], "br": br,
-                    "yr": yr if yr and 90.0 <= yr <= 110.0 else None, "n": int(r.get("n") or 0),
+                    "yr": yr if yr and 90.0 <= yr <= 110.0 else None, "n": int(r.get("n") or 0), "n0": int(r.get("n0") or 0),   # 🔧 G819 받은 업체 수(참여)
                     "sm": 1 if r.get("sm") else 0})   # 🛠 G812 «3인 이상 같은 금액 1개만» 규칙 뒤 공고(collect 종심넣기)
     out.sort(key=lambda r: (r["dt"], r["no"]))
     return out
@@ -168,7 +168,8 @@ def 통계(rs, 기준=None):   # 기준(날)은 예전 부름과 맞추려고 �
     yrs = [r["yr"] for r in rs if r.get("yr")]
     lo, hi = 분위(brs, 아래), 분위(brs, 위)
     짧 = 짧은구간(brs)
-    return {"n": len(rs), "lo": lo, "q10": 분위(brs, 10), "q50": 분위(brs, 50), "q90": 분위(brs, 90), "hi": hi,
+    참 = sorted(int(r.get("n0") or 0) for r in rs if int(r.get("n0") or 0) > 0)   # 🔧 G819 참여 업체 수 가운데(화면 «보통 ○곳이 넣었습니다»)
+    return {"n": len(rs), "lo": lo, "q10": 분위(brs, 10), "q50": 분위(brs, 50), "q90": 분위(brs, 90), "hi": hi, "참여": int(round(분위(참, 50))) if 참 else None,
             "sa": 짧[0] if 짧 else lo, "sb": 짧[1] if 짧 else hi,
             "y50": 분위(yrs, 50) if yrs else None, "d": [분위(brs, p) for p in 점들], "h": 막대(brs, min(lo, 짧[0]) if 짧 else lo, max(hi, 짧[1]) if 짧 else hi)}
 

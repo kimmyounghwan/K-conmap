@@ -2666,6 +2666,7 @@ def 종심넣기(js, r, live, 전체, now=None):
         "main": str(src.get("main") or "")[:30], "site": str(src.get("site") or "")[:20],
         "t": (now or datetime.now(KST)).strftime("%Y-%m-%d %H:%M"),
         "a": sorted(금액),     # 🎲 G817 업체 «모두» 의 투찰금액(원 · 오름차순 · 이름 없음) — 모의 개찰 재료(종심예측.py 금액표 → jongsim_bids.json)
+        "pc": to_int(r.get("pc") or src.get("pc")) or None,   # 🔧 G819 순공사원가(공고에 있을 때만) — 간이형 균형가격을 순공사원가로 좁히는 연구 재료(공개 «균형예가율» 이 아주 고름)
     }
     return True
 
