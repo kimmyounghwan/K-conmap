@@ -6,6 +6,7 @@
  *   ② 자료에 없는 종심 개찰 · 적격 개찰 — 칸 없음 ③ 바로투찰(개찰 뒤 · /?no=) — «채점하지 않습니다» 아래 같은 칸
  *   ④ 공고 한 장 /notice/{번호} — 개찰 뒤 종심은 같은 칸 · 마감 전 종심 공고는 «종합심사낙찰제(종심제)입니다» 띠 + «🏛 바로투찰에서 종심제 계산하기 →»(/calc?no=) · 적격은 예전 그대로
  *   ⑤ jongsim_open.json 없음(404) — 칸 없음 · 오류 0 ⑥ 폰 390 · PC 1280 — 넘침 0 · 오류 0 · 가상 자료만(인터넷 안 부름)
+ *   🩹 G822 ③ 개찰 뒤 종심 띠(«채점은 하지 않습니다 · 아래에 실제 균형가격» · ✏️ 직접 계산 없음) · ④ 기초금액 공개 전 · 취소된 종심 공고 한 장
  */
 import { createRequire } from 'node:module'
 import { 종심가격점수 } from '../web/src/lib/종심셈.js'
@@ -41,7 +42,10 @@ const 열적 = { ...공통, no: 'R26BK09981312', name: '가상 근린공원 정�
 const f = ['no', 'name', 'inst', 'base', 'budget', 'close', 'lo', 'hi', 'llr', 'est', 'lic', 'aval', 'gmtrl', 'ayn', 'ptot', 'pdrw', 'url', 'site', 'rgnb', 'joint', 'mthd', 'swin', 'rebid', 'enp', 'enpn', 'dt', 'sido', 'dsn', 'enpb', 'jnt', 'tg', 'nt', 'licg', 'rgs', 'az', 'smk', 'pc']
 const 표 = {}
 for (const s of [0, 1, 2, 3]) for (const q of [0, 1, 2, 3]) 표[`s${s}n${q}`] = [120, 5.1]
-const 색인 = { built: 오늘 + ' 06:00', f, pick: { tbl: 표, sz: [1e8, 3e8, 1e9], nb: [10, 30, 100] }, r: [열종, 열적].map((g) => f.map((k) => (g[k] === undefined ? (k === 'smk' ? '' : k === 'az' ? 0 : null) : g[k]))) }
+/* 🩹 G822 기초금액 공개 전(기초 0) 종심 · 취소된 종심(tg 4) — 공고 한 장 띠가 «바로투찰 종심제 계산에서 봅니다» 만 말하던 것 */
+const 열무 = { ...공통, no: 'R26BK09981313', name: '가상 배수 개선공사(간이형 · 기초금액 공개 전)', inst: '조달청 가상지방조달청', base: 0, est: 15000000000, llr: null, aval: 0, smk: 'N', swin: '종합심사낙찰제(공사)-간이형 공사 심사항목 및 배점기준' }
+const 열취 = { ...공통, no: 'R26BK09981314', name: '가상 청사 신축공사(간이형 · 취소)', inst: '조달청 가상지방조달청', base: 0, est: 14000000000, llr: null, aval: 0, smk: 'N', tg: 4, swin: '종합심사낙찰제(공사)-간이형 공사 심사항목 및 배점기준' }
+const 색인 = { built: 오늘 + ' 06:00', f, pick: { tbl: 표, sz: [1e8, 3e8, 1e9], nb: [10, 30, 100] }, r: [열종, 열적, 열무, 열취].map((g) => f.map((k) => (g[k] === undefined ? (k === 'smk' ? '' : k === 'az' ? 0 : null) : g[k]))) }
 const 지금 = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 16).replace('T', ' ')
 const 헬스 = { at: 지금, ok: true, why: '', fails: 0, got: { first: 266, live: 815 }, note: '', maint: false, hint: '', lastok: 지금, newest: { first: 오늘, live: 오늘 }, n: { first: 18396, live: 21143 }, gaps: { first: [], live: [] } }
 
@@ -121,6 +125,10 @@ for (const [이름, w, h, 폰] of [['폰 390', 390, 844, true], ['PC 1280', 1280
   await p.waitForSelector('.jsc-open', { timeout: 15000 }).catch(() => {})
   const t3 = await 칸글(p)
   ok('③ 바로투찰(개찰 뒤 /?no=) — «채점하지 않습니다» 아래 같은 칸 · 균형가격', /채점하지 않습니다/.test(await p.evaluate(() => document.querySelector('.scored').innerText)) && t3.includes(원(균형)), t3.slice(0, 200))
+  /* 🩹 G822 개찰 뒤 종심 — 위 띠가 «이 계산기가 통하지 않습니다 · 공고서의 심사기준을 직접 보셔야» 로 아래 칸과 어긋나던 것 · «✏️ 직접 계산(A값)» 단추 */
+  const 위3 = await p.evaluate(() => ({ 띠: [...document.querySelectorAll('.alertbar')].map((e) => e.innerText).join(' | '), 직접: [...document.querySelectorAll('button')].some((x) => /직접 계산해 보기/.test(x.innerText)) }))
+  ok('③ 🩹 G822 개찰 뒤 종심 띠 — «바로투찰 채점(하한 기준)은 하지 않습니다 · 아래에 실제 균형가격(근사)» · «이 계산기가 통하지 않습니다» 없음 · «✏️ 직접 계산(A값)» 단추 없음',
+    /«바로투찰 채점»\(하한 기준\)은 하지 않습니다/.test(위3.띠) && /아래에 실제 균형가격\(근사\) · 내 금액의 가격점수가 뜹니다/.test(위3.띠) && !/이 계산기가 통하지 않습니다/.test(위3.띠) && !위3.직접, 위3)
   ok('바로투찰 넘침 0', (await 넘침(p)) <= 0, await 넘침(p))
   /* ④ 공고 한 장 */
   await p.goto(BASE + '/notice/' + 나.no, { waitUntil: 'domcontentloaded' })
@@ -147,6 +155,18 @@ for (const [이름, w, h, 폰] of [['폰 390', 390, 844, true], ['PC 1280', 1280
     크기: [...(([...document.querySelectorAll('.btn-row')].find((r) => r.querySelector('a[href^="/calc?no="]')) || document.createElement('div')).querySelectorAll('a.btn'))].map((a) => [Math.round(a.getBoundingClientRect().width), Math.round(a.getBoundingClientRect().height)]) }))
   ok('④ 공고 한 장(마감 전 적격) — 예전 그대로(종심 띠 없음 · «💰 바로투찰에서 열기 →»)', !적.띠 && 적.단추.some((t) => /💰 바로투찰에서 열기/.test(t)), 적)
   ok('④ 단추 줄(마감 전 적격) — 두 단추 모두 한 줄 높이 · 첫 단추 폭 ≥ 150px', 적.크기.length === 2 && 적.크기.every(([, hh]) => hh <= 60) && 적.크기[0][0] >= 150, 적.크기)
+  /* 🩹 G822 기초금액 공개 전 · 취소된 종심 공고 한 장 */
+  await p.goto(BASE + '/notice/' + 열무.no, { waitUntil: 'domcontentloaded' })
+  await p.waitForFunction((nm) => document.body.innerText.includes(nm), 열무.name, { timeout: 20000 })
+  await 쉬어(800)
+  const 무 = await p.evaluate(() => ({ 띠: (document.querySelector('.jsc-alert') || {}).innerText || '', 단추: [...document.querySelectorAll('.btn-row a.btn')].map((a) => a.innerText.trim()) }))
+  ok('④ 🩹 G822 공고 한 장(기초금액 공개 전 종심) — 띠 «기초금액이 공개되면 바로투찰 «🏛 종심제 계산» 에서 … 볼 수 있습니다» · «🏛 종심제 계산하기 →» 그대로',
+    /기초금액이 공개되면 바로투찰 «🏛 종심제 계산» 에서/.test(무.띠) && 무.단추.some((t) => /🏛 종심제 계산하기/.test(t)), 무)
+  await p.goto(BASE + '/notice/' + 열취.no, { waitUntil: 'domcontentloaded' })
+  await p.waitForFunction((nm) => document.body.innerText.includes(nm), 열취.name, { timeout: 20000 })
+  await 쉬어(800)
+  const 취 = await p.evaluate(() => ({ 띠: !!document.querySelector('.jsc-alert'), 취소: /나라장터에서 취소된 공고입니다/.test(document.body.innerText), 단추: [...document.querySelectorAll('.btn-row a.btn')].map((a) => a.innerText.trim()) }))
+  ok('④ 🩹 G822 공고 한 장(취소된 종심) — 종심 띠 없음 · «취소된 공고» · 단추는 «💰 바로투찰에서 열기 →»', !취.띠 && 취.취소 && 취.단추.some((t) => /💰 바로투찰에서 열기/.test(t)) && !취.단추.some((t) => /종심제 계산하기/.test(t)), 취)
   ok('공고 한 장 넘침 0 · 오류 0', (await 넘침(p)) <= 0 && 오류.length === 0, 오류)
   await ctx.close()
 }
