@@ -4,6 +4,8 @@
  *   종심제 · 종합평가 공고(낙찰방법 «종합심사» · «종합평가»)에서 «⛔ 이 공고는 계산기를 쓰면 안 됩니다» 카드 자리에 뜹니다(그 밖 하한율 없는 방식은 예전 그대로).
  *   ① 균형가격 예상(기초금액의 %) ② 내 금액의 가격점수 ③ 금액 고르기 세 줄 ④ 내기 전 확인 ⑤ 내역서
  *   · 자료: /data/jongsim.json(종심예측.py) — 맞춰 보기(마지막 3개월 · 80% 범위 적중 75% 이상 · 30건 이상)를 넘었을 때만 «예상» · 금액 고르기를 냄.
+ *   🛠 G812 (11-21) 소장님 «넓힌 범위로 열기» — 90% 범위(lo ~ hi) · 매일 맞춰 보기(그날 앞 자료로 그날) · 갈래마다 15건 · 75% 넘는 갈래만 «예상»(lib/종심고르기.js 예상열림) ·
+ *     화면에 그 갈래의 실제 적중률을 같이 적음 · 떨어지면 저절로 «지난 개찰 분포(참고)».
  *     못 넘었으면 «지난 개찰 분포(참고)» 만 · 자료가 없으면 «자료 모으는 중».
  *   · 점수 식: lib/종심셈.js(예규 [별표 3] · 조달청 [별표 4]) · 셈: lib/종심고르기.js
  *   · ⚠️ 공사수행능력 · 사회적책임 점수는 회사마다 달라 건설맵이 매기지 않음 · «낙찰 보장» 같은 말 안 씀.
@@ -14,7 +16,7 @@ import { getJSON } from './lib/data.js'
 import { won } from './lib/fmt.js'
 import { 금액뿐 } from './lib/금액읽기.js'
 import { 종심갈래 } from './lib/종심셈.js'
-import { 갈래글, 묶음고르기, 점수보기, 세줄, 예정어림, 순공사하한, 동점글 } from './lib/종심고르기.js'
+import { 갈래글, 묶음고르기, 점수보기, 세줄, 예정어림, 순공사하한, 동점글, 범위끝, 갈래성적, 예상열림 } from './lib/종심고르기.js'
 import { 세기 } from './lib/받은수.jsx'
 
 const 퍼 = (v, 자리 = 2) => (v == null || !Number.isFinite(Number(v)) ? '-' : `${Number(v).toFixed(자리)}%`)
@@ -45,21 +47,39 @@ function 복사(text) {
   return ok
 }
 
-/** 띠 그림 — 5 ~ 95분위 폭 · 80% 띠 · 가운데 · 내 금액(%) */
+/** 띠 그림 — 5 ~ 95분위 폭 · 범위 띠(🛠 G812 90% — 범위끝) · 가운데 · 내 금액(%) */
 function 띠그림({ 통, 내율 }) {
   const lo = 통.d[0] - 0.5, hi = 통.d[통.d.length - 1] + 0.5
+  const [끝1, 끝2] = 범위끝(통)
   const x = (p) => `${Math.max(0, Math.min(100, ((p - lo) * 100) / (hi - lo)))}%`
   const 밖 = 내율 != null && (내율 < lo || 내율 > hi)
   return (
     <div className="jsc-band" aria-hidden="true">
       <div className="jsc-bar" />
-      <div className="jsc-in" style={{ left: x(통.q10), width: `calc(${x(통.q90)} - ${x(통.q10)})` }} />
+      <div className="jsc-in" style={{ left: x(끝1), width: `calc(${x(끝2)} - ${x(끝1)})` }} />
       <div className="jsc-mid" style={{ left: x(통.q50) }} />
       {내율 != null && <div className={'jsc-me' + (밖 ? ' out' : '')} style={{ left: x(내율) }} />}
-      <div className="jsc-lab" style={{ left: x(통.q10) }}>{퍼(통.q10, 1)}</div>
-      <div className="jsc-lab r" style={{ left: x(통.q90) }}>{퍼(통.q90, 1)}</div>
+      <div className="jsc-lab" style={{ left: x(끝1) }}>{퍼(끝1, 1)}</div>
+      <div className="jsc-lab r" style={{ left: x(끝2) }}>{퍼(끝2, 1)}</div>
     </div>
   )
+}
+
+/** 🛠 G812 «예상» 을 안 내는 까닭 한 줄 — 표본 적음(위 ⚠️ 줄이 말함) · 성적 확인 전 · 옛 판(전체 맞춰 보기) · 갈래 맞춰 보기 없음 · 15건 미만 · 75% 미만 */
+function 안보임까닭(판, 통, 갈성, 갈이름) {
+  const 맞 = (판 && 판.맞춤) || {}
+  if (통 && 통.표본적음) return null
+  if (판 && !판.확인) {
+    const g = 갈성 || (맞.n ? 맞 : null)
+    return g ? <>지난 3개월 맞춰 보기 {g.적중}/{g.n}건({g.율}%) — 성적을 점검하는 중이라 아직 «예상» 으로 쓰지 않습니다.</> : <>성적을 점검하는 중이라 아직 «예상» 으로 쓰지 않습니다.</>
+  }
+  if (!판 || !Array.isArray(판.갈래보임)) {   /* 옛 판 — 전체 맞춰 보기 */
+    return 맞.n ? <>마지막 3개월로 맞춰 보니 범위에 든 비율이 <b>{맞.율}%</b>({맞.적중}/{맞.n}건)라 기준(75%)에 못 미쳐 «예상» 으로 쓰지 않습니다.</>
+      : <>맞춰 볼 개찰이 아직 모자랍니다({(판 && 판.n) || 0}건).</>
+  }
+  if (!갈성) return <>이 갈래({갈이름})는 맞춰 볼 개찰이 아직 모자랍니다.</>
+  if (갈성.n < 15) return <>이 갈래({갈이름})는 맞춰 본 개찰이 아직 {갈성.n}건뿐(15건 미만)이라 «예상» 으로 쓰지 않습니다.</>
+  return <>지난 3개월을 매일 맞춰 보니 이 갈래({갈이름}) 범위에 든 비율이 <b>{갈성.율}%</b>({갈성.적중}/{갈성.n}건)라 기준(75%)에 못 미쳐 «예상» 으로 쓰지 않습니다.</>
 }
 
 export default function 종심카드({ base, est, 공고, 답자리 = null }) {
@@ -76,7 +96,10 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
   }, [])
   useEffect(() => { if (갈) 세기('|종심카드|봄') }, [공고?.no])   // eslint-disable-line react-hooks/exhaustive-deps
   const 통 = useMemo(() => (판 && 갈 ? 묶음고르기(판, 갈[0], 공고?.inst, est || 공고?.est, 공고?.main) : null), [판, 갈?.[0], 공고?.inst, 공고?.main, est])   // eslint-disable-line react-hooks/exhaustive-deps
-  const 보임 = !!(판 && 판.보임 && 판.확인 && 통 && !통.표본적음)   /* 맞춰 보기 기준(30건 · 75%) + 성적 확인(종심예측.py 성적확인) */
+  const 보임 = 예상열림(판, 통, 갈?.[0])   /* 🛠 G812 성적 확인 + 이 갈래가 매일 맞춰 보기 15건 · 75% 이상(옛 판은 전체 보임) */
+  const 갈성 = 판 && 갈 ? 갈래성적(판, 갈[0]) : null
+  const [끝1, 끝2] = 범위끝(통)
+  const 범위이름 = 통 && 통.lo != null ? '90%' : '80%'
   const 배점 = 갈 ? 갈[1] : 50
   const 줄들 = useMemo(() => (보임 ? 세줄(통, base, 배점) : []), [보임, 통, base, 배점])
   const 내금 = 금액뿐(내) || 0
@@ -110,24 +133,22 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
         ) : !보임 ? (
           <div className="jsc-box">
             <b>① 지난 개찰 분포(참고 · 예상 아님)</b>
-            <div className="jsc-big">기초금액의 {퍼(통.q10)} ~ {퍼(통.q90)} <small>(가운데 {퍼(통.q50)} · {통.n}건)</small></div>
+            <div className="jsc-big">기초금액의 {퍼(끝1)} ~ {퍼(끝2)} <small>(가운데 {퍼(통.q50)} · {통.n}건)</small></div>
             {통.표본적음 && <div className="note sm jsc-thin">⚠️ 이 갈래({갈래글[갈[0]] || 갈[0]})는 지난 개찰이 {통.n}건뿐(20건 미만)이라 참고만 하세요 — 자료가 더 모이면 저절로 바뀝니다.</div>}
             <띠그림 통={통} 내율={null} />
             <div className="note sm">
-              {판?.보임 && !판?.확인 ? <>마지막 3개월 맞춰 보기 {맞.적중}/{맞.n}건({맞.율}%) — 성적을 점검하는 중이라 아직 «예상» 으로 쓰지 않습니다.</>
-                : 맞.n ? <>마지막 3개월로 맞춰 보니 80% 범위에 든 비율이 <b>{맞.율}%</b>({맞.적중}/{맞.n}건)라 기준(75%)에 못 미쳐 «예상» 으로 쓰지 않습니다.</>
-                : <>맞춰 볼 개찰이 아직 모자랍니다({판?.n || 0}건).</>} 금액 고르기는 기준을 넘으면 뜹니다.
+              {안보임까닭(판, 통, 갈성, 갈래글[갈[0]] || 갈[0])}{' '}금액 고르기는 {통.표본적음 ? '자료가 모이고 ' : ''}기준을 넘으면 뜹니다.
             </div>
           </div>
         ) : (
           <>
             <div className="jsc-box">
               <b>① 균형가격 예상</b>
-              <div className="jsc-big">기초금액의 {퍼(통.q10)} ~ {퍼(통.q90)} <small>(가운데 {퍼(통.q50)})</small></div>
-              <div className="jsc-won">{won(Math.floor(base * 통.q10 / 100))} ~ {won(Math.floor(base * 통.q90 / 100))}</div>
+              <div className="jsc-big">기초금액의 {퍼(끝1)} ~ {퍼(끝2)} <small>(가운데 {퍼(통.q50)})</small></div>
+              <div className="jsc-won">{won(Math.floor(base * 끝1 / 100))} ~ {won(Math.floor(base * 끝2 / 100))}</div>
               <띠그림 통={통} 내율={내금 > 0 ? (내금 * 100) / base : null} />
-              <div className="note sm">지난 종심제 개찰 {통.n}건{통.열쇠 !== '전체' ? `(${통.열쇠.split('|').filter((x) => x && x !== '-1').slice(0, 2).join(' · ')})` : ''}의 «균형가격 ÷ 기초금액» 80% 범위 ·
-                마지막 3개월 맞춰 보기 {맞.적중}/{맞.n}건 들어맞음({맞.율}%).</div>
+              <div className="note sm">지난 종심제 개찰 {통.n}건{통.열쇠 !== '전체' ? `(${통.열쇠.split('|').filter((x) => x && x !== '-1').slice(0, 2).join(' · ')}${통.규칙뒤 ? ' · 같은 금액 규칙 뒤' : ''})` : ''}의 «균형가격 ÷ 기초금액» {범위이름} 범위 ·
+                {갈성 ? <> 지난 3개월을 매일 그날 앞 자료로 맞춰 보니 이 갈래 {갈성.적중}/{갈성.n}건 들어맞음({갈성.율}%).</> : <> 마지막 3개월 맞춰 보기 {맞.적중}/{맞.n}건 들어맞음({맞.율}%).</>}</div>
             </div>
 
             <div className="jsc-box">
@@ -158,7 +179,7 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
                 ))}
               </div>
               {됨 && <div className="note sm" role="status">📋 {됨}</div>}
-              <div className="note sm">«기대» = 균형가격이 예상 띠 어디에 오든 평균 점수 · «끝» = 80% 범위 끝에 왔을 때 점수 · 예정가격은 지난 개찰의 «예정 ÷ 기초» 가운데로 어림({won(예정)}).
+              <div className="note sm">«기대» = 균형가격이 예상 띠 어디에 오든 평균 점수 · «끝» = {범위이름} 범위 끝에 왔을 때 점수 · 예정가격은 지난 개찰의 «예정 ÷ 기초» 가운데로 어림({won(예정)}).
                 {' '}{동점글(통)}.</div>
             </div>
           </>

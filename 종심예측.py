@@ -15,6 +15,14 @@
 ■ 내는 곳: web/public/data/jongsim.json(build_json.py 가 부름 · 실패해도 사이트 집계는 계속)
   ⚠️ 업체 이름 · 사업자번호 · 공사명은 원래 jongsim.json 에 없음 — 여기서도 공고번호 · 날짜 · 갈래 · 비율만.
   시험: python tools/시험_종심예측.py
+
+🛠 G812 (2026-11-21) 소장님 「종심제 오늘중 마무리 할 것」 → 여쭘 «예상 열기» → 고르심 «넓힌 범위로 열기(추천)»
+  · 그때 80% 범위(10 ~ 90분위)는 매일 맞춰 본 성적이 간이형 74% · 지방종평 71% · 일반 45%(기준 75% 미달) —
+    작은 표본 · 8-25(조달청 9-08) «3인 이상 같은 금액 1개만» 규칙 뒤 분포가 옮겨 감(간이형 가운데 84.6 → 83.8%).
+  · 범위 = 90%(5 ~ 95분위 · lo · hi) · 규칙 뒤 공고(sm = 1)는 규칙 뒤 줄로 먼저(묶음 20건 넘으면) → 모자라면 모든 줄.
+  · 맞춰 보기 = «매일» — 마지막 3개월의 개찰을 하나씩 그날 «앞» 자료로만 예측(사이트가 날마다 다시 굽는 것과 같음).
+  · 갈래마다 맞춰 본 건수 15 이상 · 적중 75% 이상이면 그 갈래만 «예상»(갈래보임) — 떨어지면 저절로 분포(참고)로.
+  · 그때 성적: 간이형 23/27(85.2% · 폭 6.4%p) · 지방종평 14/17(82.4% · 11.8%p) · 일반 17/22(77.3% · 8.6%p) — 이 고르심이 성적 확인(성적확인 True).
 """
 import io
 import json
@@ -27,11 +35,12 @@ OUT = os.path.join(ROOT, "web", "public", "data", "jongsim.json")
 KST = timezone(timedelta(hours=9))
 
 최소표본 = 20          # 묶음 표본이 이보다 적으면 한 단계 넓힘 · 전체도 모자라면 «표본 적음»
-아래, 위 = 10, 90       # 80% 범위
+아래, 위 = 5, 95        # 🛠 G812 90% 범위(lo · hi) — 소장님 11-21 «넓힌 범위로 열기» (q10 · q90 은 참고로 그대로 실음)
 적중기준 = 75.0         # 맞춰 보기 적중률(%) 이 이상이면 보임
-검증최소 = 30           # 맞춰 본 건수가 이보다 적으면 아직 안 보임
+검증최소 = 30           # 맞춰 본 건수가 이보다 적으면 아직 안 보임(전체 «보임»)
+갈래검증최소 = 15       # 🛠 G812 갈래마다 맞춰 본 건수가 이보다 적으면 그 갈래는 «예상» 을 안 냄
 뒤달 = 3                # 마지막 3개월을 빼 두고 맞춰 봄
-성적확인 = False         # 🏛 G808 기획서 «맞춰 보기 → 성적을 숫자로 보여 드림 → 확인» — 확인 받은 뒤 True(그 전엔 화면이 예상 띠 · 금액 고르기를 안 냄)
+성적확인 = True          # 🏛 G808 «성적을 숫자로 보여 드림 → 확인» — 🛠 G812 11-21 소장님 «넓힌 범위로 열기» 로 확인(갈래마다 매일 기준을 넘을 때만 열림)
 점들 = tuple(range(5, 100, 5))   # 5 ~ 95분위 열아홉 점(기대 가격점수 셈)
 갈래들 = ("간이형", "일반", "실적제한", "고난도", "지방종평", "종심")
 
@@ -73,7 +82,8 @@ def 줄들(js):
         yr = yp * 100.0 / base if yp > 0 else None
         out.append({"no": str(no), "dt": dt, "kind": str(r.get("kind") or "종심"), "pt": r.get("pt"), "inst": 기관(r.get("inst")),
                     "band": 금액대(r.get("est")), "main": str(r.get("main") or "")[:30], "br": br,
-                    "yr": yr if yr and 90.0 <= yr <= 110.0 else None, "n": int(r.get("n") or 0)})
+                    "yr": yr if yr and 90.0 <= yr <= 110.0 else None, "n": int(r.get("n") or 0),
+                    "sm": 1 if r.get("sm") else 0})   # 🛠 G812 «3인 이상 같은 금액 1개만» 규칙 뒤 공고(collect 종심넣기)
     out.sort(key=lambda r: (r["dt"], r["no"]))
     return out
 
@@ -113,25 +123,28 @@ def 맞는가(r, t):
 def 통계(rs):
     brs = [r["br"] for r in rs]
     yrs = [r["yr"] for r in rs if r.get("yr")]
-    return {"n": len(rs), "q10": 분위(brs, 아래), "q50": 분위(brs, 50), "q90": 분위(brs, 위),
+    return {"n": len(rs), "lo": 분위(brs, 아래), "q10": 분위(brs, 10), "q50": 분위(brs, 50), "q90": 분위(brs, 90), "hi": 분위(brs, 위),
             "y50": 분위(yrs, 50) if yrs else None, "d": [분위(brs, p) for p in 점들]}
 
 
 def 예측(학습, 대상, 최소=최소표본):
-    """대상(공고 — kind · inst · band · main)에 맞는 가장 좁은 묶음(표본 최소 이상)의 통계 + 묶음 이름
+    """대상(공고 — kind · inst · band · main · sm)에 맞는 가장 좁은 묶음(표본 최소 이상)의 통계 + 묶음 이름
+       · 🛠 G812 대상이 규칙 뒤(sm)면 규칙 뒤 줄로 먼저(좁은 → 넓은) · 모자라면 모든 줄로(좁은 → 넓은) — 화면(lib/종심고르기.js 묶음고르기)과 같은 차례
        · 갈래까지 넓혀도 모자라면 그 갈래 통계에 표본적음 True(갈래 자료가 아예 없으면 None) — 전체로는 안 넓힘(G809)"""
     ts = 열쇠들(대상)
-    for t in ts:
-        rs = [r for r in 학습 if 맞는가(r, t)]
-        if len(rs) >= 최소:
-            s = 통계(rs)
-            s.update({"묶음": 열쇠글(t), "표본적음": False})
-            return s
+    모음들 = ([([r for r in 학습 if r.get("sm")], True)] if 대상.get("sm") else []) + [(학습, False)]
+    for 모음, 뒤 in 모음들:
+        for t in ts:
+            rs = [r for r in 모음 if 맞는가(r, t)]
+            if len(rs) >= 최소:
+                s = 통계(rs)
+                s.update({"묶음": 열쇠글(t), "표본적음": False, "규칙뒤": 뒤})
+                return s
     rs = [r for r in 학습 if 맞는가(r, ts[-1])]
     if not rs:
         return None
     s = 통계(rs)
-    s.update({"묶음": 열쇠글(ts[-1]), "표본적음": True})
+    s.update({"묶음": 열쇠글(ts[-1]), "표본적음": True, "규칙뒤": False})
     return s
 
 
@@ -143,29 +156,32 @@ def _달빼기(dt, 달):
 
 
 def 맞춰보기(rows, 뒤=뒤달, 최소=최소표본):
-    """마지막 뒤(3)개월을 빼 두고 그 앞 자료로만 예측 → 80% 범위 적중률 · 가운데 오차(%p) · 줄마다 한 줄"""
+    """🛠 G812 «매일» 맞춰 보기 — 마지막 뒤(3)개월의 개찰을 하나씩, 그날 «앞» 개찰로만 예측(사이트가 날마다 다시 굽는 것과 같음 · 그날 것은 안 섞임)
+       → 90% 범위(lo ~ hi) 적중률 · 가운데 오차(%p) · 갈래별(건수 · 적중 · 율 · 평균 폭) · 줄마다 한 줄"""
     if not rows:
-        return {"n": 0, "적중": 0, "율": None, "오차": None, "자름": None, "학습": 0, "줄": [], "갈래": {}}
+        return {"n": 0, "적중": 0, "율": None, "오차": None, "자름": None, "학습": 0, "줄": [], "갈래": {}, "방식": "매일"}
     끝 = max(r["dt"] for r in rows)
     자름 = _달빼기(끝[:10], 뒤)
-    학습 = [r for r in rows if r["dt"][:10] < 자름]
     시험 = [r for r in rows if r["dt"][:10] >= 자름]
     줄, 오차들, 갈래 = [], [], {}
     for r in 시험:
-        p = 예측(학습, r, 최소)
+        날 = r["dt"][:10]
+        p = 예측([x for x in rows if x["dt"][:10] < 날], r, 최소)
         if not p or p["표본적음"]:
             continue
-        든 = p["q10"] <= r["br"] <= p["q90"]
+        든 = p["lo"] <= r["br"] <= p["hi"]
         오차들.append(abs(r["br"] - p["q50"]))
-        줄.append([r["no"], r["dt"][:10], r["kind"], round(p["q10"], 3), round(p["q50"], 3), round(p["q90"], 3), round(r["br"], 3), 1 if 든 else 0, p["묶음"]])
-        g = 갈래.setdefault(r["kind"], [0, 0])
+        줄.append([r["no"], 날, r["kind"], round(p["lo"], 3), round(p["q50"], 3), round(p["hi"], 3), round(r["br"], 3), 1 if 든 else 0,
+                  p["묶음"] + (" · 규칙 뒤" if p.get("규칙뒤") else "")])
+        g = 갈래.setdefault(r["kind"], [0, 0, 0.0])
         g[0] += 1
         g[1] += 1 if 든 else 0
+        g[2] += p["hi"] - p["lo"]
     n = len(줄)
     맞 = sum(x[7] for x in 줄)
     return {"n": n, "적중": 맞, "율": round(맞 * 100.0 / n, 1) if n else None, "오차": round(분위(오차들, 50), 3) if 오차들 else None,
-            "자름": 자름, "학습": len(학습), "줄": 줄,
-            "갈래": {k: {"n": v[0], "적중": v[1], "율": round(v[1] * 100.0 / v[0], 1)} for k, v in 갈래.items()}}
+            "자름": 자름, "학습": sum(1 for r in rows if r["dt"][:10] < 자름), "줄": 줄, "방식": "매일",
+            "갈래": {k: {"n": v[0], "적중": v[1], "율": round(v[1] * 100.0 / v[0], 1), "폭": round(v[2] / v[0], 2)} for k, v in 갈래.items()}}
 
 
 def _둥글게(s, 자리=3):
@@ -193,21 +209,28 @@ def 만들기(js, now=None):
             열쇠모음.add(t)
     if rows:
         열쇠모음.add(())                 # «전체» — 참고로만 싣고(운영자) 화면 예상에는 안 씀(G809)
+    묶음뒤 = {}   # 🛠 G812 규칙 뒤(sm) 줄만 — 표본 최소 이상인 묶음만(화면은 이것부터 · 예측과 같은 차례)
     for t in sorted(열쇠모음, key=lambda t: (len(t), [str(x) for x in t])):
         rs = [r for r in rows if 맞는가(r, t)]
         if len(rs) >= 최소표본 or len(t) <= 1:
             s = 통계(rs)
             s["표본적음"] = len(rs) < 최소표본
             묶음[열쇠글(t)] = _둥글게(s)
+        뒤 = [r for r in rs if r.get("sm")]
+        if t and len(뒤) >= 최소표본:
+            s = 통계(뒤)
+            s["표본적음"] = False
+            묶음뒤[열쇠글(t)] = _둥글게(s)
     맞 = 맞춰보기(rows)
     보임 = bool(맞["n"] >= 검증최소 and 맞["율"] is not None and 맞["율"] >= 적중기준)
+    갈래보임 = sorted(k for k, v in (맞.get("갈래") or {}).items() if v["n"] >= 갈래검증최소 and v["율"] >= 적중기준)
     return {
         "_설명": "🏛 G807 종심제 균형가격 예측(균형÷기초 %) · 맞춰 보기 — 종심예측.py · 자료 data/seed/jongsim.json(건설맵이 공개 금액으로 다시 셈 · 근사값)",
         "t": now.strftime("%Y-%m-%d %H:%M"), "n": len(rows),
         "기간": [rows[0]["dt"][:10], rows[-1]["dt"][:10]] if rows else None,
         "갈래수": {k: sum(1 for r in rows if r["kind"] == k) for k in 갈래들 if any(r["kind"] == k for r in rows)},
-        "묶음": 묶음, "맞춤": 맞, "보임": 보임, "확인": bool(성적확인),
-        "기준": {"범위": [아래, 위], "적중": 적중기준, "검증최소": 검증최소, "최소표본": 최소표본, "뒤달": 뒤달, "점": list(점들)},
+        "묶음": 묶음, "묶음뒤": 묶음뒤, "맞춤": 맞, "보임": 보임, "갈래보임": 갈래보임, "확인": bool(성적확인),
+        "기준": {"범위": [아래, 위], "적중": 적중기준, "검증최소": 검증최소, "갈래검증최소": 갈래검증최소, "최소표본": 최소표본, "뒤달": 뒤달, "점": list(점들), "맞춤": "매일"},
     }
 
 
@@ -224,8 +247,9 @@ def build(out=OUT, src=SRC, log=print, now=None):
         json.dump(d, f, ensure_ascii=False, separators=(",", ":"))
     os.replace(tmp, out)
     m = d["맞춤"]
-    log("🏛 종심 균형가격 예측 — 줄 %s · 묶음 %s · 맞춰 보기 %s건 적중 %s%% · 보임 %s"
-        % (format(d["n"], ","), len(d["묶음"]), m["n"], m["율"] if m["율"] is not None else "-", "예" if d["보임"] else "아니오"))
+    log("🏛 종심 균형가격 예측 — 줄 %s · 묶음 %s(규칙 뒤 %s) · 매일 맞춰 보기 %s건 적중 %s%% · 보임 %s · 열린 갈래 %s"
+        % (format(d["n"], ","), len(d["묶음"]), len(d["묶음뒤"]), m["n"], m["율"] if m["율"] is not None else "-", "예" if d["보임"] else "아니오",
+           " · ".join(d["갈래보임"]) or "없음"))
     return d
 
 
