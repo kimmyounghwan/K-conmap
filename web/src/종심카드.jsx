@@ -12,6 +12,7 @@
  *     ②③ 기대 · 열에 아홉 · 0점 위험 = 지난 3개월 맞춰 보기 «어긋남»(lib/종심고르기.js 갈래잔)으로 셈 — 지난 분포만으로 셈하면 일반 기대가 실제보다 8.7점 높았음
  *     ③ 가운데 줄 이름 «기준»(가운데 절반 안에서 기대 최고) · 세 줄 중 기대가 가장 높은 줄에 «★ 기대 최고»
  *   📊 G816 ① 아래 «📊 성적표» (열 때만 종심성적.jsx · /data/jongsim_score.json 받음) — 소장님 「만들 수 있는 건 다 만들어」 ③
+ *   🎲 G817 ② 내 금액 아래 «🎲 모의 개찰» (누를 때만 종심모의.jsx · /data/jongsim_bids.json 받음) — 같은 말씀 ①
  *   · 점수 식: lib/종심셈.js(예규 [별표 3] · 조달청 [별표 4]) · 셈: lib/종심고르기.js
  *   · ⚠️ 공사수행능력 · 사회적책임 점수는 회사마다 달라 건설맵이 매기지 않음 · «낙찰 보장» 같은 말 안 씀.
  */
@@ -25,6 +26,20 @@ import { 갈래글, 묶음고르기, 점수보기, 세줄, 예정어림, 순공�
 import { 세기 } from './lib/받은수.jsx'
 
 const 종심성적 = lazy(() => import('./종심성적.jsx'))   /* 📊 G816 성적표 — 열 때만 받음 */
+const 종심모의 = lazy(() => import('./종심모의.jsx'))   /* 🎲 G817 모의 개찰 — 누를 때만 받음 */
+
+/** 🎲 G817 «🎲 모의 개찰» 단추 — 누르면 펼침(다시 누르면 접음) · 내 금액이 바뀌면 펼친 채 다시 셈 */
+function 모의단추({ 거름, 율, 갈이름, 묶음글 }) {
+  const [열림, set열림] = useState(false)
+  return (
+    <div className="jsm-wrap">
+      <button type="button" className={'btn ghost jsm-btn' + (열림 ? ' on' : '')} aria-expanded={열림} onClick={() => set열림((v) => !v)}>
+        🎲 모의 개찰 — 지난 {갈이름} 개찰에 이 금액 넣어 보기 {열림 ? '▲' : '▼'}
+      </button>
+      {열림 && <Suspense fallback={<div className="note sm">불러오는 중…</div>}><종심모의 거름={거름} 율={율} 갈이름={갈이름} 묶음글={묶음글} /></Suspense>}
+    </div>
+  )
+}
 
 /** 📊 G816 «📊 성적표» 접힘 — 열 때만 성적표 조각 · 자료를 받음 */
 function 성적접힘({ 갈 }) {
@@ -157,6 +172,8 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
   const 내점 = 보임 && 내금 > 0 ? 점수보기(내금, 통, base, 배점, 구간, 잔) : null
   const 보인것 = [...줄들, ...(내점 ? [내점] : [])]
   const 영있음 = 보인것.some((z) => z.영 > 0)
+  const 묶음이름 = 통 && 통.열쇠 !== '전체' ? `${통.열쇠.split('|').filter((x) => x && x !== '-1').slice(0, 2).join(' · ')}${통.규칙뒤 ? ' · 같은 금액 규칙 뒤' : ''}` : ''   /* ① 글과 같은 꼴 */
+  const 모의거름 = useMemo(() => (통 && 갈 ? { kind: 갈[0], 열쇠: 통.열쇠, 규칙뒤: !!통.규칙뒤 } : null), [통, 갈?.[0]])   // eslint-disable-line react-hooks/exhaustive-deps
   const 바닥있음 = 보인것.some((z) => 위험들(z).some((t) => /가장 낮게/.test(t)))
   const 예정 = 통 ? 예정어림(통, base) : 0
   const 순하 = 통 ? 순공사하한(공고?.pc, 예정, base) : 0
@@ -225,6 +242,7 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
                   {순하 > 0 && 내금 < 순하 && <div className="nm-warn">⚠️ 예정가격 중 순공사원가(재료비 · 노무비 · 경비 + 부가세)의 98%(약 {won(순하)}) 아래 — 예정가격 100억 미만 공사는 낙찰자에서 제외됩니다(제13조③).</div>}
                 </div>
               )}
+              {내금 > 0 && 내점 && <모의단추 거름={모의거름} 율={(내금 * 100) / base} 갈이름={갈래글[갈[0]] || 갈[0]} 묶음글={묶음이름} />}
             </div>
 
             <div className="jsc-box">

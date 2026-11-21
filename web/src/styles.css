@@ -11941,6 +11941,21 @@ textarea.ta-mid { min-height: 110px; line-height: 1.7; }
 .jss-bar b { position: absolute; top: 1px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--accent); }
 .jss-bar b.out { background: var(--bad); }
 .jss-more { align-self: flex-start; width: auto; }
+/* 🎲 G817 종심 모의 개찰(종심모의.jsx) */
+.jsm-wrap { margin-top: 8px; }
+.jsm-btn { width: auto; font-size: 13px; text-align: left; white-space: normal; word-break: keep-all; }
+.jsm-btn.on { border-color: var(--accent); }
+.jsm { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.jsm-h { font-size: 13px; line-height: 1.5; word-break: keep-all; }
+.jsm-rows { display: flex; flex-direction: column; gap: 4px; }
+.jsm-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1.4fr); grid-template-areas: "d n s" "d n t"; gap: 0 6px; font-size: 11.5px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.jsm-row .d { grid-area: d; color: var(--muted); font-weight: 700; align-self: center; }
+.jsm-row .n { grid-area: n; color: var(--muted); align-self: center; word-break: keep-all; }
+.jsm-row .s { grid-area: s; font-weight: 800; }
+.jsm-row .s.top { color: var(--accent); }
+.jsm-row .s.out { color: var(--bad); }
+.jsm-row .t { grid-area: t; color: var(--muted); }
+.jsm-more { align-self: flex-start; width: auto; }
 .jsc-row.on { background: var(--accent-soft); border-color: var(--accent); }
 .jsc-chk summary, .jsc-why summary { cursor: pointer; font-size: 13px; word-break: keep-all; }
 .jsc-chk label { display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; line-height: 1.5; margin-top: 6px; word-break: keep-all; }

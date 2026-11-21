@@ -16,6 +16,8 @@
   · 받지 못한 것(공고 · 순위 없음)은 3일 뒤 다시 · 세 번이면 그만 — jongsim.json 의 "x" 칸(공고번호 → [까닭, 횟수, 날])
   · 통신 · 하루 몫 · 시간 예산에 걸리면 표시하지 않고 멈춤(다음 회차가 이어받음)
   ⚠️ 업체 이름 · 사업자번호 · 공사명은 jongsim.json 에 안 실음(종심넣기 그대로).
+  🎲 G817 (11-21 소장님 「만들 수 있는 건 다 만들어」 ① 모의 개찰) — 채우기 뒤 남는 시간에 «업체 금액(a) 없는 종심 줄» 의 순위를 다시 받아 금액만 더함(금액채우기 ·
+     새것부터 · --금액건수(기본 30) · 받지 못한 것은 "xa" 칸에 3일 뒤 다시 · 세 번이면 그만 · 균형가격 · 다른 칸은 그대로).
 
     python tools/종심채우기.py                       한 회차 몫(기본 60건)
     python tools/종심채우기.py --건수 80 --시간예산 240
@@ -107,8 +109,8 @@ def 건너뜀(x, 오늘):
         return False
 
 
-def 표시(js, no, 까닭, 오늘):
-    x = js.setdefault("x", {})
+def 표시(js, no, 까닭, 오늘, 칸="x"):
+    x = js.setdefault(칸, {})
     전 = x.get(no)
     n = (int(전[1]) if isinstance(전, list) and len(전) > 1 and str(전[1]).isdigit() else 0) + 1
     x[no] = [까닭, 1 if 까닭 == "아님" else n, 오늘]
@@ -205,11 +207,44 @@ def 채우기(key, js, 후보, live=None, first=None, 건수=60, 시간예산=0,
     return st
 
 
+def 금액채우기(key, js, 건수=30, 시간예산=0, 쉼=0.35, now=None):
+    """🎲 G817 업체 금액("a") 없는 종심 줄 — 새것부터 순위를 다시 받아 C.금액넣기(금액만 · 균형가격은 그대로) · 못 받으면 "xa" 에 표시(3일 뒤 · 세 번이면 그만)"""
+    now = now or datetime.now(C.KST)
+    오늘 = now.strftime("%Y-%m-%d")
+    xa = js.setdefault("xa", {})
+    남 = sorted((r for r in (js.get("con") or {}).values() if isinstance(r, dict) and r.get("no") and "a" not in r and not 건너뜀(xa.get(r["no"]), 오늘)),
+               key=lambda r: str(r.get("dt") or ""), reverse=True)
+    t0 = time.time()
+    st = {"남은": len(남), "봄": 0, "넣음": 0, "없음": 0, "부름": 0}
+    for r in 남[:max(0, 건수)]:
+        if _멈춤():
+            break
+        if 시간예산 and time.time() - t0 > 시간예산:
+            break
+        no = r["no"]
+        st["봄"] += 1
+        전체 = []
+        C.openg_ranks(key, no, re.sub(r"[^0-9]", "", str(r.get("ord") or "000")).zfill(3), 전체=전체)
+        st["부름"] += 1
+        time.sleep(쉼)
+        if _멈춤() and not 전체:
+            break
+        if C.금액넣기(js, no, 전체):
+            st["넣음"] += 1
+            xa.pop(no, None)
+        else:
+            표시(js, no, "순위없음", 오늘, 칸="xa")
+            st["없음"] += 1
+    st["초"] = int(time.time() - t0)
+    return st
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--건수", type=int, default=60, help="이번 회차에 볼 공고 수")
     ap.add_argument("--시간예산", type=int, default=240, help="이 초를 넘기면 멈춤 (0=안 봄)")
     ap.add_argument("--쉼", type=float, default=0.35, help="한 번 부른 뒤 쉬는 시간(초)")
+    ap.add_argument("--금액건수", type=int, default=30, help="🎲 G817 업체 금액(모의 개찰 재료)을 다시 받을 종심 줄 수")
     a = ap.parse_args()
 
     js = C.load_jongsim()
@@ -223,6 +258,15 @@ def main():
     live, first = C.load_store("live"), C.load_store("first")
     st = 채우기(key, js, 후보, live, first, 건수=a.건수, 시간예산=a.시간예산, 쉼=a.쉼, now=now)
     js["_채움"] = dict(st, t=now.strftime("%Y-%m-%d %H:%M"), 모두=len(js.get("con") or {}))
+    try:   # 🎲 G817 남는 시간에 업체 금액(모의 개찰 재료) — 실패해도 채운 것은 저장
+        남시간 = max(0, a.시간예산 - st.get("초", 0)) if a.시간예산 else 0
+        if not _멈춤() and (not a.시간예산 or 남시간 > 20):
+            sa = 금액채우기(key, js, 건수=a.금액건수, 시간예산=남시간, 쉼=a.쉼, now=now)
+            js["_금액"] = dict(sa, t=now.strftime("%Y-%m-%d %H:%M"), 있음=sum(1 for r in (js.get("con") or {}).values() if isinstance(r, dict) and "a" in r))
+            print("🎲 종심 업체 금액(모의 개찰 재료) — 남은 %s · 이번 %s건 봄 · 넣음 %s · 없음 %s · 있음 %s줄"
+                  % (sa["남은"], sa["봄"], sa["넣음"], sa["없음"], js["_금액"]["있음"]))
+    except Exception as e:   # noqa: BLE001
+        print("  ! 🎲 종심 업체 금액 채우기 실패 (%s: %s) — 넘어갑니다" % (type(e).__name__, e))
     C.save_jongsim(js)
     print("🏛 종심 지난 1년 채우기 — 후보 %s · 남은 %s · 이번 %s건 봄(부름 %s) · 넣음 %s · 아님 %s · 없음 %s · %s초 · 모두 %s줄"
           % tuple(format(v, ",") for v in (st["후보"], st["남은"], st["봄"], st["부름"], st["넣음"], st["아님"], st["없음"], st["초"],

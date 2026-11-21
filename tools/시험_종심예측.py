@@ -197,6 +197,21 @@ with tempfile.TemporaryDirectory() as t:
     b2 = P.build(out=out, src=os.path.join(t, "없음.json"), log=lambda s: None, now=지금)
     ok("원본 파일 없음 → 빈 판(멈추지 않음)", b2["n"] == 0 and not b2["보임"])
 
+print("⑦ 🎲 G817 금액표(jongsim_bids.json) — 모의 개찰 재료")
+금판 = {"con": {}}
+for i in range(45):
+    v = dict(줄("G%02d" % i, "2026-%02d-%02d 11:00" % (9 + i // 28, 1 + i % 28), 84 + i * 0.01), yp=int(1.1e10 * 1.002), a=[int(1.1e10 * (0.84 + 0.001 * k)) for k in range(10)])
+    금판["con"]["G%02d" % i] = v
+금판["con"]["H1"] = dict(줄("H1", "2026-10-02 11:00", 90.0, kind="일반"), yp=int(1.1e10), a=[3, 1, 2])
+금판["con"]["H2"] = dict(줄("H2", "2026-10-03 11:00", 90.0, kind="일반"), yp=int(1.1e10))                     # 금액 없음 → 안 실음
+금판["con"]["H3"] = dict(줄("H3", "", 90.0, kind="일반"), yp=int(1.1e10), a=[1, 2])                              # 개찰일 없음 → 안 실음
+금 = P.금액표(금판, now=지금)
+ok("금액표 — 금액(a) 있고 기초 · 예정 · 균형 · 개찰일 있는 줄만 · 갈래마다 새것부터 40건(간이형 45 → 40) · 일반 1",
+   금["n"] == 41 and 금["갈래수"] == {"간이형": 40, "일반": 1} and "G00" not in 금["공고"] and "G44" in 금["공고"] and "H1" in 금["공고"] and "H2" not in 금["공고"] and "H3" not in 금["공고"], 금["갈래수"])
+h1 = 금["공고"]["H1"]
+ok("금액표 한 줄 — [개찰일시, 갈래, 배점, 기초, 예정, 규칙뒤, 균형, 금액(오름차순), 묶음 열쇠(가장 좁은 — 예측 열쇠들 첫째와 같음)] · 칸 이름", h1[:2] == ["2026-10-02 11:00", "일반"] and h1[3] == int(1.1e10) and h1[4] == int(1.1e10)
+   and h1[7] == [1, 2, 3] and h1[6] == int(1.1e10 * 90.0 / 100) and len(금["칸"]) == 9 and h1[8] == P.열쇠글(P.열쇠들([r for r in P.줄들(금판) if r["no"] == "H1"][0])[0]) == "일반|조달청|0|토목공사업", h1)
+
 print("⑥ 🛠 G813 개찰표(jongsim_open.json) — 개찰 뒤 실제 균형가격")
 개판 = {"con": {
     "K1": dict(줄("K1", "2026-11-18 11:00", 84.5), n0=62, n1=60, yp=16480000000),
@@ -212,6 +227,8 @@ with tempfile.TemporaryDirectory() as t:
     P.build(out=out, src=src, log=lambda s: None, now=지금)
     글 = open(os.path.join(t, "o", "jongsim_open.json"), encoding="utf-8").read()
     ok("build — jongsim_open.json 도 씀 · 공사명 · 업체 칸 안 실림", json.loads(글)["n"] == 1 and "가상 공사명" not in 글 and "가상건설" not in 글, 글[:200])
+    금글 = open(os.path.join(t, "o", "jongsim_bids.json"), encoding="utf-8").read()
+    ok("🎲 G817 build — jongsim_bids.json 도 씀(금액 없으면 빈 공고) · 공사명 · 업체 칸 안 실림", "공고" in json.loads(금글) and "가상 공사명" not in 금글 and "가상건설" not in 금글, 금글[:200])
     성글 = open(os.path.join(t, "o", "jongsim_score.json"), encoding="utf-8").read()
     ok("📊 G816 build — jongsim_score.json 도 씀 · 공사명 · 업체 칸 안 실림", "줄" in json.loads(성글) and "가상 공사명" not in 성글 and "가상건설" not in 성글, 성글[:200])
 

@@ -2603,6 +2603,7 @@ def refresh_seed(name, data):
 #   · 이 셈 때문에 수집이 멈추면 안 됩니다 — 부르는 곳은 모두 try 로 감쌈.
 JONGSIM = os.path.join(SEED, "jongsim.json")
 JONGSIM_REDO = 10         # 순위는 받았지만 균형가격 줄이 없는 종심 개찰(이 기능 전 · 저장소 안) — 회차마다 다시 받는 수
+JONGSIM_AMT = 20          # 🎲 G817 균형가격 줄은 있는데 업체 금액(모의 개찰 재료 "a")이 없는 종심 개찰(저장소 70일 안) — 회차마다 다시 받는 수
 
 
 def load_jongsim():
@@ -2664,7 +2665,19 @@ def 종심넣기(js, r, live, 전체, now=None):
         "bp": round(b["bal"] * 100.0 / 예정, 4) if 예정 else None,
         "main": str(src.get("main") or "")[:30], "site": str(src.get("site") or "")[:20],
         "t": (now or datetime.now(KST)).strftime("%Y-%m-%d %H:%M"),
+        "a": sorted(금액),     # 🎲 G817 업체 «모두» 의 투찰금액(원 · 오름차순 · 이름 없음) — 모의 개찰 재료(종심예측.py 금액표 → jongsim_bids.json)
     }
+    return True
+
+
+def 금액넣기(js, no, 전체):
+    """🎲 G817 이미 있는 종심 줄 js["con"][no] 에 업체 «모두» 의 투찰금액(원 · 오름차순)만 "a" 로 더함 — 모의 개찰 재료
+       균형가격 · 다른 칸은 안 건드림 · 업체 이름 없음 · 금액이 2개 안 되거나 줄이 없으면 False"""
+    row = ((js or {}).get("con") or {}).get(str(no or ""))
+    금액 = sorted(int(a) for a, _ in (전체 or []) if a and int(a) > 0)
+    if not isinstance(row, dict) or len(금액) < 2:
+        return False
+    row["a"] = 금액
     return True
 
 
@@ -4428,9 +4441,14 @@ def main():
         try:
             if jongsim is not None and not NET_DOWN and not QUOTA_OUT:
                 lv = live.get("con") or {}
-                남은 = []
+                남은, 금액만 = [], []
                 for no, r in (first.get("con") or {}).items():
-                    if no in jongsim.get("con", {}) or len(r.get("corps") or []) < 2:
+                    if len(r.get("corps") or []) < 2:
+                        continue
+                    jr = jongsim.get("con", {}).get(no)
+                    if jr is not None:
+                        if isinstance(jr, dict) and "a" not in jr:
+                            금액만.append(r)      # 🎲 G817 균형가격 줄은 있는데 업체 금액이 없음(이 기능 전) — 금액만 다시 받음
                         continue
                     src = lv.get(no) or {}
                     if R.종심갈래(r.get("swin") or src.get("swin"), r.get("est") or src.get("est")):
@@ -4446,6 +4464,20 @@ def main():
                         js_n += 1
                 if 남은:
                     print(f"  · 🏛 종심 균형가격 지난 개찰 다시 셈: 남은 {len(남은):,}건 중 {min(len(남은), JONGSIM_REDO)}건")
+                # 🎲 G817 모의 개찰 재료 — 업체 금액이 없는 종심 줄(저장소 70일 안)만 금액을 다시 받아 "a" 로(균형가격은 그대로)
+                금액만.sort(key=lambda r: dt_digits(r.get("dt")), reverse=True)
+                금액넣음 = 0
+                for r in 금액만[:JONGSIM_AMT]:
+                    if NET_DOWN or QUOTA_OUT:
+                        break
+                    전체 = []
+                    openg_ranks(key, r["no"], r.get("ord"), 전체=전체)
+                    time.sleep(args.sleep)
+                    if 금액넣기(jongsim, r["no"], 전체):
+                        js_n += 1
+                        금액넣음 += 1
+                if 금액만:
+                    print(f"  · 🎲 종심 업체 금액(모의 개찰 재료) 다시 받음: 남은 {len(금액만):,}건 중 {금액넣음}건 넣음")
             if jongsim is not None and js_n:
                 save_jongsim(jongsim)
                 print(f"  → 🏛 종심 균형가격 줄 {js_n:,}건 더함 · 모두 {len(jongsim.get('con') or {}):,}건(data/seed/jongsim.json)")

@@ -334,6 +334,41 @@ def 성적판(js, 판=None, now=None):
             "칸": ["번호", "날", "갈래", "lo", "q50", "hi", "실제", "고른든", "묶음", "sa", "sb", "짧은든", "기초", "예정율", "배점", "y50", "d"]}
 
 
+금액표최대 = 40          # 🎲 G817 모의 개찰 — 갈래마다 최근 개찰 몇 건까지 싣나(화면은 30건까지 씀)
+
+
+def 금액표(js, now=None, 최대=금액표최대):
+    """🎲 G817 (11-21 소장님 「만들 수 있는 건 다 만들어」 ① 모의 개찰) — jongsim_bids.json(따로 한 장 · 카드에서 «🎲 모의 개찰» 을 누를 때만 받음)
+       업체 «모두» 의 투찰금액("a" — collect 종심넣기 · 금액넣기 · 종심채우기 금액채우기)이 있는 종심 줄만 · 갈래마다 개찰일 새것부터 최대 40건
+       공고번호 → [개찰일시, 갈래, 배점, 기초, 예정(근사), 같은 금액 규칙(sm), 균형가격(근사), [금액 …], 묶음 열쇠(가장 좁은 — 갈래|기관|금액대|주공종)]
+       · 화면은 카드 «예상» 과 같은 묶음(열쇠 앞부분이 같고 · 규칙 뒤면 sm 1)만 씀(모자라면 갈래 전체) · 업체 이름 · 사업자번호 · 공사명 없음"""
+    now = now or datetime.now(KST)
+    갈 = {}
+    for no, r in ((js or {}).get("con") or {}).items():
+        if not isinstance(r, dict):
+            continue
+        a = r.get("a")
+        try:
+            base, yp, bal = int(r.get("base") or 0), int(r.get("yp") or 0), int(r.get("bal") or 0)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(a, list) or len(a) < 2 or base <= 0 or yp <= 0 or bal <= 0 or len(str(r.get("dt") or "")) < 10:
+            continue
+        금액 = sorted(int(x) for x in a if isinstance(x, (int, float)) and x > 0)
+        if len(금액) < 2:
+            continue
+        k = str(r.get("kind") or "종심")
+        열 = 열쇠글((k, 기관(r.get("inst")), 금액대(r.get("est")), str(r.get("main") or "")[:30]))
+        갈.setdefault(k, []).append((str(r.get("dt"))[:16], str(no), [str(r.get("dt"))[:16], k, int(r.get("pt") or 50), base, yp, 1 if r.get("sm") else 0, bal, 금액, 열]))
+    공고 = {}
+    for k, xs in 갈.items():
+        for _, no, v in sorted(xs, reverse=True)[:max(0, 최대)]:
+            공고[no] = v
+    return {"_설명": "🎲 G817 종심 모의 개찰 재료 — 업체 «모두» 의 투찰금액(나라장터 공개 · 이름 없음) · 종심예측.py 금액표 · 예정 · 균형가격은 공개 금액으로 다시 셈한 근사값",
+            "t": now.strftime("%Y-%m-%d %H:%M"), "n": len(공고), "갈래수": {k: min(len(v), 최대) for k, v in 갈.items()},
+            "칸": ["개찰일시", "갈래", "배점", "기초", "예정", "규칙뒤", "균형", "금액", "열쇠"], "공고": 공고}
+
+
 def 개찰표(js, now=None):
     """🛠 G813 개찰 뒤 실제 균형가격 — 공고번호 → [개찰일시, 갈래, 배점, 기초, 균형, 예정, 받은 수, 셈에 든 수](원 · 정수) · 줄들() 과 같은 거름"""
     now = now or datetime.now(KST)
@@ -386,6 +421,12 @@ def build(out=OUT, src=SRC, log=print, now=None, 상태경로=None):
         _쓰기(상태경로, {"_설명": "🛠 G815 종심 «예상» 갈래 열림 상태 — 종심예측.py build 가 씀(75% 에 열고 · 70% 밑에 닫음)", "t": d["t"], "갈래": d["상태"]})
     except Exception as e:   # noqa: BLE001
         log("🏛 종심 상태 못 씀: %s" % e)
+    try:   # 🎲 G817 모의 개찰 재료 — 따로 한 장(카드에서 «🎲 모의 개찰» 을 누를 때만) · 실패해도 예측 판은 그대로
+        금 = 금액표(js, now)
+        _쓰기(os.path.join(os.path.dirname(out), "jongsim_bids.json"), 금)
+        log("🎲 종심 모의 개찰 재료 — %s건(%s)" % (금["n"], " · ".join("%s %d" % (k, v) for k, v in 금["갈래수"].items()) or "아직 없음"))
+    except Exception as e:   # noqa: BLE001
+        log("🎲 종심 모의 개찰 재료 못 씀: %s" % e)
     try:   # 🛠 G816 성적표 — 따로 한 장(카드에서 «📊 성적표» 를 열 때만) · 실패해도 예측 판은 그대로
         성 = 성적판(js, d, now)
         _쓰기(os.path.join(os.path.dirname(out), "jongsim_score.json"), 성)

@@ -142,6 +142,28 @@ st7 = J.채우기("가짜키", js4, 후보, live, first, 건수=10, 쉼=0, now=�
 ok("하루 몫 끝 → 바로 멈춤 · 표시 안 함", st7["봄"] == 0 and not js4["con"] and not js4.get("x"), [st7, js4])
 C.QUOTA_OUT = False
 
+print("⑤ 🎲 G817 금액채우기 — 업체 금액(a) 없는 종심 줄만 · 새것부터 · 금액만 더함")
+jsA = {"con": {
+    "A1": {"no": "A1", "ord": "000", "dt": "2026-09-01 11:00", "bal": 111, "kind": "간이형"},
+    "A2": {"no": "A2", "ord": "001", "dt": "2026-10-01 11:00", "bal": 222, "kind": "일반"},
+    "A3": {"no": "A3", "ord": "000", "dt": "2026-11-01 11:00", "bal": 333, "kind": "간이형", "a": [1, 2]},
+    "A4": {"no": "A4", "ord": "000", "dt": "2026-08-01 11:00", "bal": 444, "kind": "간이형"}}}
+상태["순위차수"].update({"A1": "000", "A2": "001", "A4": "009"})     # A4 는 순위 없음(차수 다름)
+부른것.clear()
+sa = J.금액채우기("가짜키", jsA, 건수=2, 쉼=0, now=지금)
+ok("건수 2 → 새것부터 둘(A2 · A1) · a 있는 A3 은 안 부름 · 차수 그대로", [x[1:] for x in 부른것 if x[0] == "순위"] == [("A2", "001"), ("A1", "000")] and sa["넣음"] == 2 and sa["남은"] == 3, [부른것, sa])
+ok("넣은 줄 — a = 업체 모두 금액(오름차순) · 균형가격 · 다른 칸 그대로", jsA["con"]["A2"]["a"] == sorted(금액들) and jsA["con"]["A2"]["bal"] == 222 and jsA["con"]["A1"]["a"] == sorted(금액들)
+   and jsA["con"]["A3"]["a"] == [1, 2] and "a" not in jsA["con"]["A4"], jsA["con"]["A2"])
+sb = J.금액채우기("가짜키", jsA, 건수=5, 쉼=0, now=지금)
+ok("다음 회차 — 남은 A4 만 · 순위 없음 → xa «순위없음» 1번 · a 없음", sb["봄"] == 1 and sb["없음"] == 1 and jsA["xa"]["A4"][:2] == ["순위없음", 1] and "a" not in jsA["con"]["A4"], [sb, jsA.get("xa")])
+sc = J.금액채우기("가짜키", jsA, 건수=5, 쉼=0, now=datetime(2026, 11, 22, 9, 0, tzinfo=KST))
+ok("이틀 뒤엔 안 부름(3일 뒤 다시) · x(공고 채우기) 칸은 안 건드림", sc["봄"] == 0 and "A4" not in (jsA.get("x") or {}), sc)
+C.QUOTA_OUT = True
+jsQ = {"con": {"Q1": {"no": "Q1", "dt": "2026-10-01 11:00"}}}
+sq = J.금액채우기("가짜키", jsQ, 건수=5, 쉼=0, now=지금)
+ok("하루 몫 끝 → 바로 멈춤 · 표시 안 함", sq["봄"] == 0 and not jsQ.get("xa") and "a" not in jsQ["con"]["Q1"], [sq, jsQ])
+C.QUOTA_OUT = False
+
 print("④ 건수 · 저장")
 js5 = {"con": {}}
 st8 = J.채우기("가짜키", js5, 후보, live, first, 건수=1, 쉼=0, now=지금)
