@@ -22,6 +22,7 @@ import { 공동칸 } from '../공동칸.jsx'
 import { load우리지역 } from '../lib/공동.js'
 import { loadLicCodes } from '../lib/lic.js'
 import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
+import { 종심갈래 } from '../lib/종심셈.js'   /* 🏛 G813 종심제 · 종합평가 공고 — «🏛 종심제 계산» 으로 */
 
 /**
  * /notice/{공고번호} — 공고 한 건 / 개찰 결과 한 건.
@@ -183,6 +184,7 @@ function OpenNotice({ r }) {
   /* 🤝 공동도급 판정에 쓰는 «우리 회사» — 공고 목록에서 고른 값을 그대로 (이 브라우저에만 저장) */
   const 나 = useMemo(() => ({ 지역: load우리지역(), 면허: loadLicCodes() }), [])
   const qb = quickBid(r, ov?.sjq?.p50 ?? P50_FALLBACK, qFix || undefined)
+  const 종심 = !!종심갈래(r.swin, estOf(r))   /* 🏛 G813 */
   return (
     <>
       {/* ⚖ G579 취소공고 — «아직 개찰 전» 이 아니라 «취소된 공고» */}
@@ -237,11 +239,19 @@ function OpenNotice({ r }) {
         <공고첨부 r={r} />
         <공고문전문 r={r} />
       </div>
+      {/* 🏛 G813 종심제 · 종합평가 공고 — 낙찰하한율이 아니라 균형가격으로 가격점수(바로투찰 «🏛 종심제 계산») */}
+      {종심 && (
+        <div className="alertbar jsc-alert" style={{ marginTop: 10 }}>
+          🏛 <b>이 공고는 {/종합평가/.test(String(r.swin || '')) && !/종합심사/.test(String(r.swin || '')) ? '종합평가낙찰제' : '종합심사낙찰제(종심제)'}입니다.</b>{' '}
+          낙찰하한율이 아니라 <b>균형가격</b>으로 가격점수를 매깁니다 — 바로투찰 «🏛 종심제 계산» 에서 균형가격 예상 · 내 금액의 가격점수 · 금액 고르기를 봅니다.
+        </div>
+      )}
       <div className="btn-row" style={{ marginTop: 10 }}>
         <Link className="btn" to={`/calc?no=${encodeURIComponent(String(r.no))}`} style={{ flex: 1 }}>
-          💰 바로투찰에서 열기 →
+          {종심 ? '🏛 종심제 계산하기 →' : '💰 바로투찰에서 열기 →'}
         </Link>
-        <a className="btn ghost" href={r.url || 'https://www.g2b.go.kr'} target="_blank" rel="noreferrer">
+        {/* 🩹 G813 (11-21 캡처에서 찾음) .btn 의 width 100% 때문에 이 단추가 줄 폭을 다 잡아 앞 단추가 한 글자 폭(47px)으로 눌려 세로로 길게 섰음(마감 전 공고 한 장 모두 · 폰 · PC) → 글 폭만 */}
+        <a className="btn ghost" href={r.url || 'https://www.g2b.go.kr'} target="_blank" rel="noreferrer" style={{ width: 'auto', flex: 'none' }}>
           나라장터 공고 ↗
         </a>
       </div>

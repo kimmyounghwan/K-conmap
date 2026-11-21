@@ -23,6 +23,10 @@
   · 맞춰 보기 = «매일» — 마지막 3개월의 개찰을 하나씩 그날 «앞» 자료로만 예측(사이트가 날마다 다시 굽는 것과 같음).
   · 갈래마다 맞춰 본 건수 15 이상 · 적중 75% 이상이면 그 갈래만 «예상»(갈래보임) — 떨어지면 저절로 분포(참고)로.
   · 그때 성적: 간이형 23/27(85.2% · 폭 6.4%p) · 지방종평 14/17(82.4% · 11.8%p) · 일반 17/22(77.3% · 8.6%p) — 이 고르심이 성적 확인(성적확인 True).
+
+🛠 G813 (2026-11-21) 「종심제 오늘중 마무리」 ② 개찰 뒤 «실제 균형가격» — web/public/data/jongsim_open.json
+  공고번호 → [개찰일시, 갈래, 배점, 기초, 균형(근사), 예정(근사), 받은 수, 셈에 든 수] — 공고 한 장 · 1순위 펼침 · 바로투찰(개찰 뒤)이 읽음(종심개찰.jsx)
+  ⚠️ 업체 이름 · 사업자번호 · 공사명 없음(원본에도 없음) · 줄들() 과 같은 거름(기초 · 균형 · 60 ~ 120% · 개찰일시).
 """
 import io
 import json
@@ -234,6 +238,39 @@ def 만들기(js, now=None):
     }
 
 
+def 개찰표(js, now=None):
+    """🛠 G813 개찰 뒤 실제 균형가격 — 공고번호 → [개찰일시, 갈래, 배점, 기초, 균형, 예정, 받은 수, 셈에 든 수](원 · 정수) · 줄들() 과 같은 거름"""
+    now = now or datetime.now(KST)
+    표 = {}
+    for no, r in ((js or {}).get("con") or {}).items():
+        try:
+            base, bal = float(r.get("base") or 0), float(r.get("bal") or 0)
+        except (TypeError, ValueError):
+            continue
+        dt = str(r.get("dt") or "")[:16]
+        if base <= 0 or bal <= 0 or len(dt) < 10 or not 60.0 <= bal * 100.0 / base <= 120.0:
+            continue
+        try:
+            yp = int(float(r.get("yp") or 0))
+        except (TypeError, ValueError):
+            yp = 0
+        try:
+            pt = int(float(r.get("pt") or 0))
+        except (TypeError, ValueError):
+            pt = 0
+        표[str(no)] = [dt, str(r.get("kind") or "종심"), pt, int(base), int(bal), yp if yp > 0 else None, int(r.get("n0") or r.get("n") or 0), int(r.get("n1") or 0)]
+    return {"_설명": "🏛 G813 종심제 · 종합평가 개찰 — 건설맵이 공개 금액으로 다시 셈한 균형가격(근사) · 공고번호 → [개찰일시, 갈래, 배점, 기초, 균형, 예정(근사), 받은 수, 셈에 든 수]",
+            "t": now.strftime("%Y-%m-%d %H:%M"), "n": len(표), "공고": 표}
+
+
+def _쓰기(경로, d):
+    os.makedirs(os.path.dirname(경로), exist_ok=True)
+    tmp = 경로 + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8") as f:
+        json.dump(d, f, ensure_ascii=False, separators=(",", ":"))
+    os.replace(tmp, 경로)
+
+
 def build(out=OUT, src=SRC, log=print, now=None):
     try:
         with io.open(src, encoding="utf-8") as f:
@@ -241,11 +278,13 @@ def build(out=OUT, src=SRC, log=print, now=None):
     except FileNotFoundError:
         js = {"con": {}}
     d = 만들기(js, now)
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    tmp = out + ".tmp"
-    with io.open(tmp, "w", encoding="utf-8") as f:
-        json.dump(d, f, ensure_ascii=False, separators=(",", ":"))
-    os.replace(tmp, out)
+    _쓰기(out, d)
+    try:   # 🛠 G813 개찰 뒤 실제 균형가격 — 따로 한 장(예측 판이 커지지 않게) · 실패해도 예측 판은 그대로
+        개 = 개찰표(js, now)
+        _쓰기(os.path.join(os.path.dirname(out), "jongsim_open.json"), 개)
+        log("🏛 종심 개찰 실제 균형가격 — %s건" % format(개["n"], ","))
+    except Exception as e:   # noqa: BLE001
+        log("🏛 종심 개찰 표 못 씀: %s" % e)
     m = d["맞춤"]
     log("🏛 종심 균형가격 예측 — 줄 %s · 묶음 %s(규칙 뒤 %s) · 매일 맞춰 보기 %s건 적중 %s%% · 보임 %s · 열린 갈래 %s"
         % (format(d["n"], ","), len(d["묶음"]), len(d["묶음뒤"]), m["n"], m["율"] if m["율"] is not None else "-", "예" if d["보임"] else "아니오",

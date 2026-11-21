@@ -117,6 +117,10 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
   return (
     <div className="card jsc" ref={답자리}>
       <div className="detail-h">🏛 종심제 계산 <span className="jsc-tag">{갈래글[갈[0]] || 갈[0]} · 가격 {배점}점</span></div>
+      {/* 🛠 G813 공고기관이 조달청 · 지자체가 아니면(공기업 · 기관 자체 기준) — 배점 · 식 · 균형가격 셈이 다를 수 있음(나라장터엔 드묾 · 1년 6건) */}
+      {!/^조달청/.test(String(공고?.inst || '').trim()) && 갈[0] !== '지방종평' && (
+        <div className="note sm jsc-own">⚠️ 조달청 공고가 아닙니다 — 공기업 · 기관은 자체 심사기준(배점 · 가격점수 식 · 균형가격 셈)이 다를 수 있으니 공고서의 심사기준을 꼭 확인하세요. 아래 셈은 계약예규 · 조달청 기준입니다.</div>
+      )}
       <div className="kv2">
         <div><span>기초금액</span><b>{won(base)}</b></div>
         <div><span>추정가격</span><b>{won(est || 공고?.est || 0)}</b></div>

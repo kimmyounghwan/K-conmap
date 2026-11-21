@@ -147,5 +147,21 @@ with tempfile.TemporaryDirectory() as t:
     b2 = P.build(out=out, src=os.path.join(t, "없음.json"), log=lambda s: None, now=지금)
     ok("원본 파일 없음 → 빈 판(멈추지 않음)", b2["n"] == 0 and not b2["보임"])
 
+print("⑥ 🛠 G813 개찰표(jongsim_open.json) — 개찰 뒤 실제 균형가격")
+개판 = {"con": {
+    "K1": dict(줄("K1", "2026-11-18 11:00", 84.5), n0=62, n1=60, yp=16480000000),
+    "K2": dict(줄("K2", "", 84.5)), "K3": dict(줄("K3", "2026-11-18 11:00", 130.0)), "K4": dict(줄("K4", "2026-11-18 11:00", 84.0), base=None),
+}}
+개 = P.개찰표(개판, now=지금)
+k1 = 개["공고"].get("K1")
+ok("개찰표 — 쓸 수 있는 줄만(개찰일 없음 · 130% · 기초 없음 뺌) · [개찰일시, 갈래, 배점, 기초, 균형, 예정, 받은 수, 빼기 뒤 수] · 정수",
+   list(개["공고"]) == ["K1"] and 개["n"] == 1 and k1 == ["2026-11-18 11:00", "간이형", 60, 11000000000, int(1.1e10 * 84.5 / 100), 16480000000, 62, 60], 개)
+with tempfile.TemporaryDirectory() as t:
+    src, out = os.path.join(t, "s.json"), os.path.join(t, "o", "jongsim.json")
+    json.dump(dict(개판["con"]["K1"], name="가상 공사명 ○○", corp="가상건설(주)") and {"con": {"K1": dict(개판["con"]["K1"], name="가상 공사명 ○○")}}, open(src, "w", encoding="utf-8"), ensure_ascii=False)
+    P.build(out=out, src=src, log=lambda s: None, now=지금)
+    글 = open(os.path.join(t, "o", "jongsim_open.json"), encoding="utf-8").read()
+    ok("build — jongsim_open.json 도 씀 · 공사명 · 업체 칸 안 실림", json.loads(글)["n"] == 1 and "가상 공사명" not in 글 and "가상건설" not in 글, 글[:200])
+
 print(f"\n{'✗' if bad else '✓'} 시험_종심예측 {n - bad}/{n}")
 sys.exit(1 if bad else 0)
