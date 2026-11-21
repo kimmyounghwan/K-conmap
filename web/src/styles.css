@@ -11918,6 +11918,29 @@ textarea.ta-mid { min-height: 110px; line-height: 1.7; }
 .jsc-row.mid { border-color: var(--accent-line); }
 .jsc-best { display: block; font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--accent); margin-top: 2px; white-space: nowrap; }   /* 🛠 G815 세 줄 중 기대 최고 */
 .jsc-nw { white-space: nowrap; }   /* 🛠 G815 «열에 아홉 ○점 이상» · «⚠️ 0점 위험 ○%» 한 마디는 안 쪼갬 */
+/* 📊 G816 종심 성적표(종심성적.jsx) */
+.jsc-score { margin-top: 8px; }
+.jsc-score > summary { cursor: pointer; font-size: 13px; font-weight: 800; color: var(--accent); word-break: keep-all; }
+.jss { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.jss-g { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); }
+.jss-g.on { border-color: var(--accent-line); }
+.jss-h { font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.jss-tag { font-size: 11px; font-weight: 800; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; white-space: nowrap; }
+.jss-tag.open { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
+.jss-l { font-size: 12px; line-height: 1.55; margin-top: 3px; word-break: keep-all; }
+.jss-rows { display: flex; flex-direction: column; gap: 4px; }
+.jss-row { display: grid; grid-template-columns: 40px 62px minmax(0, 1fr); grid-template-areas: "d k r" "d k a" "bar bar bar"; gap: 0 6px; font-size: 11.5px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.jss-row .d { grid-area: d; color: var(--muted); font-weight: 700; align-self: center; }
+.jss-row .k { grid-area: k; font-weight: 800; align-self: center; word-break: keep-all; }
+.jss-row .r { grid-area: r; color: var(--muted); }
+.jss-row .a { grid-area: a; font-weight: 800; }
+.jss-row .a.out { color: var(--bad); }
+.jss-bar { grid-area: bar; position: relative; height: 10px; margin-top: 4px; }
+.jss-bar::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 2px; background: var(--line); border-radius: 2px; }
+.jss-bar i { position: absolute; top: 2px; height: 6px; background: var(--accent); opacity: .35; border-radius: 3px; }
+.jss-bar b { position: absolute; top: 1px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--accent); }
+.jss-bar b.out { background: var(--bad); }
+.jss-more { align-self: flex-start; width: auto; }
 .jsc-row.on { background: var(--accent-soft); border-color: var(--accent); }
 .jsc-chk summary, .jsc-why summary { cursor: pointer; font-size: 13px; word-break: keep-all; }
 .jsc-chk label { display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; line-height: 1.5; margin-top: 6px; word-break: keep-all; }

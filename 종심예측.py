@@ -95,7 +95,7 @@ def 줄들(js):
             continue
         yp = float(r.get("yp") or 0) if str(r.get("yp") or "").replace(".", "", 1).isdigit() else 0.0
         yr = yp * 100.0 / base if yp > 0 else None
-        out.append({"no": str(no), "dt": dt, "kind": str(r.get("kind") or "종심"), "pt": r.get("pt"), "inst": 기관(r.get("inst")),
+        out.append({"no": str(no), "dt": dt, "kind": str(r.get("kind") or "종심"), "pt": r.get("pt"), "inst": 기관(r.get("inst")), "base": base,
                     "band": 금액대(r.get("est")), "main": str(r.get("main") or "")[:30], "br": br,
                     "yr": yr if yr and 90.0 <= yr <= 110.0 else None, "n": int(r.get("n") or 0),
                     "sm": 1 if r.get("sm") else 0})   # 🛠 G812 «3인 이상 같은 금액 1개만» 규칙 뒤 공고(collect 종심넣기)
@@ -201,12 +201,13 @@ def _달빼기(dt, 달):
     return "%04d-%02d%s" % (y, m, dt[7:])
 
 
-def 맞춰보기(rows, 뒤=뒤달, 최소=최소표본):
+def 맞춰보기(rows, 뒤=뒤달, 최소=최소표본, 자세=False):
     """🛠 G812 «매일» 맞춰 보기 — 마지막 뒤(3)개월의 개찰을 하나씩, 그날 «앞» 개찰로만 예측(사이트가 날마다 다시 굽는 것과 같음 · 그날 것은 안 섞임)
        → 고른 범위(5 ~ 95분위 · lo ~ hi) 적중률 · 가운데 오차(%p) · 갈래별(건수 · 적중 · 율 · 평균 폭) · 줄마다 한 줄
        🛠 G815 짧은 구간(sa ~ sb)도 같이 맞춰 봄 → 갈래마다 «구간»(짧은 · 고른) 고름: 짧은 구간이 75% 이상이고 더 좁으면 짧은 · 아니면 고른
          (갈래의 적중 · 율 · 폭 = 고른 구간 것 · «고른» «짧은» 칸에 둘 다 · 줄 = [번호, 날, 갈래, lo, q50, hi, 실제, 들었나, 묶음, sa, sb, 짧은에 들었나])
        🛠 G815 갈래마다 «잔» = 줄마다 [실제 − 예상 가운데(균형÷기초 %p), 실제 − 예상(예정÷기초 %p) | None] — 화면 «기대 · 열에 아홉» 점수를 이 어긋남으로 셈
+       🛠 G816 자세=True 면 «자세» = 줄마다 [기초금액, 실제 예정÷기초 | None, 배점, 예상 예정÷기초 가운데(y50), 열아홉 점(d)] — 성적표(jongsim_score.json) 점수 맞춰 보기 재료
          (11-21 실제 자료 66건: 지난 개찰 분포 열아홉 점만으로 셈하면 기대가 실제보다 평균 5.0점(일반 8.7점) 높고 0점 위험을 3%로 봤으나 실제 12%
           → 어긋남으로 셈하면 기대 43.4 · 실제 43.8점 · 0점 위험 11.6% · 실제 12.1%)"""
     if not rows:
@@ -214,7 +215,7 @@ def 맞춰보기(rows, 뒤=뒤달, 최소=최소표본):
     끝 = max(r["dt"] for r in rows)
     자름 = _달빼기(끝[:10], 뒤)
     시험 = [r for r in rows if r["dt"][:10] >= 자름]
-    줄, 오차들, 갈래 = [], [], {}
+    줄, 오차들, 갈래, 자세들 = [], [], {}, []
     for r in 시험:
         날 = r["dt"][:10]
         p = 예측([x for x in rows if x["dt"][:10] < 날], r, 최소, 날)   # 그날 앞 개찰로만(G812 매일)
@@ -232,6 +233,9 @@ def 맞춰보기(rows, 뒤=뒤달, 최소=최소표본):
         g[3] += 1 if 짧든 else 0
         g[4] += p["sb"] - p["sa"]
         g[5].append([round(r["br"] - p["q50"], 3), round(r["yr"] - p["y50"], 3) if r.get("yr") and p.get("y50") else None])   # 🛠 G815 어긋남
+        if 자세:
+            자세들.append([int(r.get("base") or 0), round(r["yr"], 4) if r.get("yr") else None, r.get("pt"),
+                         round(p["y50"], 4) if p.get("y50") else None, [round(x, 3) for x in p["d"]]])
     n = len(줄)
     맞 = sum(x[7] for x in 줄)
     갈 = {}
@@ -241,8 +245,11 @@ def 맞춰보기(rows, 뒤=뒤달, 최소=최소표본):
         고름 = "짧은" if 짧은["율"] >= 적중기준 and 짧은["폭"] < 고른["폭"] else "고른"
         골 = 짧은 if 고름 == "짧은" else 고른
         갈[k] = {"n": v[0], "적중": 골["적중"], "율": 골["율"], "폭": 골["폭"], "구간": 고름, "고른": 고른, "짧은": 짧은, "잔": v[5]}
-    return {"n": n, "적중": 맞, "율": round(맞 * 100.0 / n, 1) if n else None, "오차": round(분위(오차들, 50), 3) if 오차들 else None,
-            "자름": 자름, "학습": sum(1 for r in rows if r["dt"][:10] < 자름), "줄": 줄, "방식": "매일", "갈래": 갈}
+    o = {"n": n, "적중": 맞, "율": round(맞 * 100.0 / n, 1) if n else None, "오차": round(분위(오차들, 50), 3) if 오차들 else None,
+         "자름": 자름, "학습": sum(1 for r in rows if r["dt"][:10] < 자름), "줄": 줄, "방식": "매일", "갈래": 갈}
+    if 자세:
+        o["자세"] = 자세들
+    return o
 
 
 def _둥글게(s, 자리=3):
@@ -311,6 +318,22 @@ def 만들기(js, now=None, 이전=None):
     }
 
 
+def 성적판(js, 판=None, now=None):
+    """🛠 G816 (11-21 소장님 「만들 수 있는 건 다 만들어」 ③ 종심 성적표) — jongsim_score.json(따로 한 장 · 카드의 «📊 성적표» 를 열 때만 받음)
+       갈래마다 범위 맞춰 보기(매일 · 그날 앞 자료) + 줄마다 점수 셈 재료(자세) — 점수 맞춰 보기는 화면(lib/종심고르기.js 점수맞춰보기)이 카드와 같은 셈으로
+       · 줄 = [번호, 날, 갈래, lo, q50, hi, 실제, 고른에 들었나, 묶음, sa, sb, 짧은에 들었나, 기초금액, 실제 예정÷기초, 배점, y50, 열아홉 점]
+       · 공사명 · 업체 이름 없음(번호 · 날 · 갈래 · 비율뿐)"""
+    now = now or datetime.now(KST)
+    rows = 줄들(js)
+    맞 = 맞춰보기(rows, 자세=True)
+    줄 = [a + b for a, b in zip(맞["줄"], 맞.get("자세") or [])]
+    갈 = {k: {kk: vv for kk, vv in v.items() if kk != "잔"} for k, v in (맞.get("갈래") or {}).items()}
+    return {"_설명": "🛠 G816 종심 성적표 — 지난 3개월 매일(그날 앞 자료로) 맞춰 본 기록 · 종심예측.py 성적판 · 균형가격은 공개 금액으로 다시 셈한 근사값",
+            "t": now.strftime("%Y-%m-%d %H:%M"), "자름": 맞["자름"], "n": 맞["n"], "적중": 맞["적중"], "율": 맞["율"], "오차": 맞["오차"],
+            "갈래": 갈, "갈래보임": list((판 or {}).get("갈래보임") or []), "줄": 줄,
+            "칸": ["번호", "날", "갈래", "lo", "q50", "hi", "실제", "고른든", "묶음", "sa", "sb", "짧은든", "기초", "예정율", "배점", "y50", "d"]}
+
+
 def 개찰표(js, now=None):
     """🛠 G813 개찰 뒤 실제 균형가격 — 공고번호 → [개찰일시, 갈래, 배점, 기초, 균형, 예정, 받은 수, 셈에 든 수](원 · 정수) · 줄들() 과 같은 거름"""
     now = now or datetime.now(KST)
@@ -363,6 +386,12 @@ def build(out=OUT, src=SRC, log=print, now=None, 상태경로=None):
         _쓰기(상태경로, {"_설명": "🛠 G815 종심 «예상» 갈래 열림 상태 — 종심예측.py build 가 씀(75% 에 열고 · 70% 밑에 닫음)", "t": d["t"], "갈래": d["상태"]})
     except Exception as e:   # noqa: BLE001
         log("🏛 종심 상태 못 씀: %s" % e)
+    try:   # 🛠 G816 성적표 — 따로 한 장(카드에서 «📊 성적표» 를 열 때만) · 실패해도 예측 판은 그대로
+        성 = 성적판(js, d, now)
+        _쓰기(os.path.join(os.path.dirname(out), "jongsim_score.json"), 성)
+        log("🏛 종심 성적표 — 맞춰 본 줄 %s건" % 성["n"])
+    except Exception as e:   # noqa: BLE001
+        log("🏛 종심 성적표 못 씀: %s" % e)
     try:   # 🛠 G813 개찰 뒤 실제 균형가격 — 따로 한 장(예측 판이 커지지 않게) · 실패해도 예측 판은 그대로
         개 = 개찰표(js, now)
         _쓰기(os.path.join(os.path.dirname(out), "jongsim_open.json"), 개)

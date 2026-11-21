@@ -160,6 +160,38 @@ export function 세줄(통, base, 배점, 잔 = null) {
   return [줄('조금 낮게', 천(좋은.율 - 아래폭)), { 이름: '기준', ...좋은 }, 줄('조금 높게', 천(좋은.율 + 위폭))]
 }
 
+/** 🛠 G816 성적표 — jongsim_score.json 줄(열일곱 칸) → 갈래마다 «기준 금액» 점수 맞춰 보기(카드와 같은 셈 — 세줄 · 점수보기)
+ *  그 개찰 하나만 빼고 같은 갈래 나머지의 어긋남(잔)으로 기준 금액을 고르고(나머지가 10건 안 되면 지난 개찰 분포로) → 실제 균형가격 · 예정가격으로 낸 점수와 견줌
+ *  실제 예정÷기초를 모르는 줄은 뺌 → { 갈래: { n, 기대, 실제(평균 · 소수 한 자리), 영셈(0점 위험 평균 0 ~ 1), 영실(실제 0점 수), 아n · 아맞(열에 아홉 — 0 아닌 때), 잔셈 } } */
+export function 점수맞춰보기(줄) {
+  const 수 = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v))
+  const rs = (Array.isArray(줄) ? 줄 : [])
+    .filter((a) => Array.isArray(a) && a.length >= 17 && Array.isArray(a[16]) && a[16].length === 19 && 수(a[12]) > 0 && 수(a[6]) != null && 수(a[4]) != null)
+    .map((a) => ({ kind: a[2], br: 수(a[6]), base: 수(a[12]), yr: 수(a[13]), pt: 수(a[14]) || 50,
+      통: { q50: 수(a[4]), y50: 수(a[15]), d: a[16].map(Number), lo: 수(a[3]), hi: 수(a[5]), sa: 수(a[9]), sb: 수(a[10]) } }))
+  const 갈 = {}
+  for (const r of rs) (갈[r.kind] ||= []).push(r)
+  const out = {}
+  for (const [k, g] of Object.entries(갈)) {
+    const o = { n: 0, 기대: 0, 실제: 0, 영셈: 0, 영실: 0, 아n: 0, 아맞: 0, 잔셈: 0 }
+    g.forEach((r, i) => {
+      if (r.yr == null) return
+      const 잔들 = g.filter((_, j) => j !== i).map((x) => [x.br - x.통.q50, x.yr != null && x.통.y50 != null ? x.yr - x.통.y50 : null])
+      const 잔 = 잔들.length >= 잔최소 ? 잔들 : null
+      const 기 = 세줄(r.통, r.base, r.pt, 잔)[1]
+      if (!기) return
+      const 실 = 종심가격점수(기.T, Math.floor((r.base * r.br) / 100), Math.floor((r.base * r.yr) / 100), r.pt) ?? 0
+      o.n++; o.기대 += 기.기대; o.실제 += 실; o.영셈 += 기.영
+      if (실 <= 0) o.영실++
+      if (기.아홉 > 0) { o.아n++; if (실 + 1e-9 >= 기.아홉) o.아맞++ }
+      if (잔) o.잔셈++
+    })
+    if (o.n) { o.기대 = Math.round((o.기대 / o.n) * 10) / 10; o.실제 = Math.round((o.실제 / o.n) * 10) / 10; o.영셈 /= o.n }
+    out[k] = o
+  }
+  return out
+}
+
 /** 제13조③ — 예정가격 100억 미만이면 «예정가격 중 순공사원가»(순공사원가 × 예정 ÷ 기초 · 올림)의 98%(올림) 미만은 낙찰 제외 · 해당 없으면 0 */
 export function 순공사하한(pc, 예정, base) {
   const p = Number(pc) || 0, y = Number(예정) || 0, b = Number(base) || 0

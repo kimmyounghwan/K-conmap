@@ -123,6 +123,12 @@ k첫 = [k for k in 전예 if 전예[k]["dt"][:10] >= m["자름"]][0]
 전예[k첫] = dict(전예[k첫], yp="")                                   # 예정가격 모르는 줄 → 예정 차이 None
 m예 = P.맞춰보기(P.줄들({"con": 전예}))
 ok("🛠 G815 예정가격 모르는 줄 → 잔의 예정 차이 None(균형 차이는 그대로)", m예["갈래"]["간이형"]["잔"][0][1] is None and m예["갈래"]["간이형"]["잔"][0][0] == g["잔"][0][0], m예["갈래"]["간이형"]["잔"][:2])
+성 = P.성적판({"con": 전}, {"갈래보임": ["간이형"]})
+줄0 = 성["줄"][0]
+ok("📊 G816 성적판 — 줄 열일곱 칸(맞춰 보기 열두 칸 + 기초 · 예정÷기초 · 배점 · y50 · 열아홉 점) · 건수 = 맞춰 본 수 · 갈래보임 그대로 · 갈래에 잔 없음",
+   len(성["줄"]) == m["n"] and all(len(x) == 17 for x in 성["줄"]) and 줄0[:12] == m["줄"][0] and 줄0[12] == int(1.1e10) and abs(줄0[13] - 100.2) < 0.01
+   and 줄0[14] == 60 and len(줄0[16]) == 19 and 성["갈래보임"] == ["간이형"] and "잔" not in 성["갈래"]["간이형"] and 성["n"] == m["n"] and len(성["칸"]) == 17, [len(성["줄"]), 줄0[12:16]])
+ok("📊 G816 성적판 — 열아홉 점 = 그날 앞 줄로 셈한 예측의 d(손셈 첫 줄)", 줄0[16] == [round(x, 3) for x in P.예측([x for x in rows if x["dt"][:10] < 줄0[1]], [r for r in rows if r["no"] == 줄0[0]][0])["d"]], 줄0[16][:3])
 전2 = dict(전)
 k끝 = list(전2)[-1]
 전2[k끝] = dict(전2[k끝], bal=int(전2[k끝]["base"] * 0.99))          # 마지막 개찰 하나가 99% 로 튀어도
@@ -206,6 +212,8 @@ with tempfile.TemporaryDirectory() as t:
     P.build(out=out, src=src, log=lambda s: None, now=지금)
     글 = open(os.path.join(t, "o", "jongsim_open.json"), encoding="utf-8").read()
     ok("build — jongsim_open.json 도 씀 · 공사명 · 업체 칸 안 실림", json.loads(글)["n"] == 1 and "가상 공사명" not in 글 and "가상건설" not in 글, 글[:200])
+    성글 = open(os.path.join(t, "o", "jongsim_score.json"), encoding="utf-8").read()
+    ok("📊 G816 build — jongsim_score.json 도 씀 · 공사명 · 업체 칸 안 실림", "줄" in json.loads(성글) and "가상 공사명" not in 성글 and "가상건설" not in 성글, 성글[:200])
 
 print(f"\n{'✗' if bad else '✓'} 시험_종심예측 {n - bad}/{n}")
 sys.exit(1 if bad else 0)

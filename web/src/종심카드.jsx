@@ -11,10 +11,11 @@
  *     ① 갈래마다 짧은(80% 가 든 가장 좁은) · 고른(위 · 아래 5% 뺀) 범위 · 범위 뜻을 글로 · 확률 막대 · «가장 많이 나온 자리»
  *     ②③ 기대 · 열에 아홉 · 0점 위험 = 지난 3개월 맞춰 보기 «어긋남»(lib/종심고르기.js 갈래잔)으로 셈 — 지난 분포만으로 셈하면 일반 기대가 실제보다 8.7점 높았음
  *     ③ 가운데 줄 이름 «기준»(가운데 절반 안에서 기대 최고) · 세 줄 중 기대가 가장 높은 줄에 «★ 기대 최고»
+ *   📊 G816 ① 아래 «📊 성적표» (열 때만 종심성적.jsx · /data/jongsim_score.json 받음) — 소장님 「만들 수 있는 건 다 만들어」 ③
  *   · 점수 식: lib/종심셈.js(예규 [별표 3] · 조달청 [별표 4]) · 셈: lib/종심고르기.js
  *   · ⚠️ 공사수행능력 · 사회적책임 점수는 회사마다 달라 건설맵이 매기지 않음 · «낙찰 보장» 같은 말 안 씀.
  */
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getJSON } from './lib/data.js'
 import { won } from './lib/fmt.js'
@@ -22,6 +23,19 @@ import { 금액뿐 } from './lib/금액읽기.js'
 import { 종심갈래 } from './lib/종심셈.js'
 import { 갈래글, 묶음고르기, 점수보기, 세줄, 예정어림, 순공사하한, 동점글, 범위끝, 갈래성적, 예상열림, 갈래구간, 많이나온곳, 갈래잔 } from './lib/종심고르기.js'
 import { 세기 } from './lib/받은수.jsx'
+
+const 종심성적 = lazy(() => import('./종심성적.jsx'))   /* 📊 G816 성적표 — 열 때만 받음 */
+
+/** 📊 G816 «📊 성적표» 접힘 — 열 때만 성적표 조각 · 자료를 받음 */
+function 성적접힘({ 갈 }) {
+  const [열림, set열림] = useState(false)
+  return (
+    <details className="jsc-score" onToggle={(e) => set열림(e.currentTarget.open)}>
+      <summary>📊 성적표 — 지난 3개월 매일 맞춰 본 기록</summary>
+      {열림 && <Suspense fallback={<div className="note sm">성적표를 불러오는 중…</div>}><종심성적 갈={갈} /></Suspense>}
+    </details>
+  )
+}
 
 const 퍼 = (v, 자리 = 2) => (v == null || !Number.isFinite(Number(v)) ? '-' : `${Number(v).toFixed(자리)}%`)
 const 점 = (v) => (v == null || !Number.isFinite(Number(v)) ? '-' : Number(v).toFixed(3))
@@ -184,6 +198,7 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
             <div className="note sm">
               {안보임까닭(판, 통, 갈성, 갈래글[갈[0]] || 갈[0])}{' '}금액 고르기는 {통.표본적음 ? '자료가 모이고 ' : ''}기준을 넘으면 뜹니다.
             </div>
+            <성적접힘 갈={갈[0]} />
           </div>
         ) : (
           <>
@@ -195,6 +210,7 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
               {많 && <div className="note sm jsc-mode">가장 많이 나온 자리 <b>{퍼(많.아래, 1)} ~ {퍼(많.위, 1)}</b> — 비슷한 지난 개찰의 {Math.round(많.몫 * 100)}%</div>}
               <div className="note sm">지난 종심제 개찰 {통.n}건{통.열쇠 !== '전체' ? `(${통.열쇠.split('|').filter((x) => x && x !== '-1').slice(0, 2).join(' · ')}${통.규칙뒤 ? ' · 같은 금액 규칙 뒤' : ''})` : ''}의 «균형가격 ÷ 기초금액»{범위뜻(판, 통, 구간)}입니다.
                 {갈성 ? <> 지난 3개월을 매일 그날 앞 자료로 맞춰 보니 이 갈래 <b>{갈성.n}건 중 {갈성.적중}건({갈성.율}%)</b>이 이 범위 안에 들었습니다.</> : <> 마지막 3개월 맞춰 보기 {맞.적중}/{맞.n}건 들어맞음({맞.율}%).</>}</div>
+              <성적접힘 갈={갈[0]} />
             </div>
 
             <div className="jsc-box">
