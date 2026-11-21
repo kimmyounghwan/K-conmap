@@ -404,6 +404,13 @@ export default function LiveBoard() {
         <input value={q} onChange={(e) => { setQ(e.target.value); 검색어기억(e.target.value) }}
           placeholder="공고명 · 발주기관 검색" style={{ marginBottom: 10 }} />
       )}
+      {/* 🩹 G810 (11-21 바로투찰 점검) 공고번호를 넣으면 이 목록 찾기(공고명 · 발주기관)엔 안 걸려 «0건» 이었음 → 바로투찰로 그 번호를 바로 여는 길 */}
+      {!bagMode && /^R\d{2}[A-Z]{2,4}\d{5,10}$/i.test(q.trim()) && (
+        <div className="note sm lv-nohint" style={{ margin: '-4px 0 10px' }}>
+          🔎 공고번호 <b>{q.trim().toUpperCase()}</b> —{' '}
+          <Link to={`/?no=${encodeURIComponent(q.trim().toUpperCase())}`}>💰 바로투찰에서 이 번호로 열기 →</Link>
+        </div>
+      )}
 
       {/* ▦ 빈 곳 쓰기 (2026-09-30, 소장님 「빈 공간 활용을 해줘. 제주를 위로 올리면 좀 좋지 않아?」)
           넓은 화면에서 지역 알약이 한 줄을 조금 넘쳐 «제주» 하나만 둘째 줄에 떨어지고, 그 오른쪽이 텅 비었습니다.
