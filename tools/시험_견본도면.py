@@ -49,6 +49,15 @@ print('② 문의 화면')
 ok(f'contact.html 견본 고리 = 파일 두 장 {[g[0] for g in 고리]}', [g[0] for g in 고리] == 장들, 고리)
 ok("contact.html — '/cn/' + x[0] + '.pdf' · '_작게.webp' · 새 창 · 도면 작성대행 묶음에서만", "a.href = '/cn/' + x[0] + '.pdf'" in 문 and "'_작게.webp'" in 문 and "a.target = '_blank'" in 문 and "if (g[0] === '도면 작성대행') {" in 문)
 ok("contact.html — 숨은 셈 |공사연결|견본-<무엇>", "셈('|공사연결|견본-' + x[2])" in 문)
+# 📄 G818 (11-21 소장님 「견본보기 서류대행 닫기가 없어 ㅎㅎ」) 새 창(PDF) 대신 이 쪽 안 덮개 — 크게 그림 · ✕ 닫기
+ok("📄 G818 contact.html — 누르면 새 창을 막고(preventDefault) 견본열기(제목, _크게.webp, pdf) · 덮개에 ✕ 닫기 둘 · Esc · 뒤로 · 앱이면 PDF 길 안 보임",
+   "견본열기(x[1], '/cn/' + x[0] + '_크게.webp', '/cn/' + x[0] + '.pdf')" in 문 and "e.preventDefault()" in 문 and "function 견본열기(제목, 그림, pdf)" in 문
+   and "b.textContent = '✕ 닫기'" in 문 and "닫는단추('위')" in 문 and "닫는단추('아래')" in 문 and "e.key === 'Escape'" in 문 and "addEventListener('popstate'" in 문
+   and "display-mode: standalone" in 문 and "if (!앱)" in 문)
+for 장 in 장들:
+    큰 = f'web/public/cn/{장}_크게.webp'
+    b = 읽(큰, True) if os.path.exists(os.path.join(ROOT, 큰)) else b''
+    ok(f'📄 G818 {큰} 있음 · RIFF/WEBP · 50KB ~ 600KB', b[:4] == b'RIFF' and b[8:12] == b'WEBP' and 50_000 < len(b) < 600_000, len(b))
 
 print('③ 만드는 쪽')
 만 = 읽('tools/견본도면.py')

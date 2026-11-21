@@ -7,6 +7,7 @@ import { searchCorp } from '../lib/data.js'
 import { AgencyPicker, Bars, Months, Tile, Empty } from '../components.jsx'
 import { wonShort, pct, num, dateFull, normCorp } from '../lib/fmt.js'
 import 기관견본줄 from '../기관견본.jsx'
+import 견본단추 from '../견본보기.jsx'
 import { use지금종류, 종류찾기 } from '../종류띠.jsx'   /* 🩹 G198 용역 · 물품 방에서 연 분석 → «준비 중» 안내 */
 import { 세기 as 분석세기 } from '../lib/받은수.jsx'
 import { 손끝 } from '../lib/손끝고르기.js'   /* 👆 G215 아이폰 — 한글 치는 중 목록 누름이 안 먹던 것 */
@@ -273,7 +274,7 @@ function 견본줄() {
         받아 보고 싶으시면 맵톡에 상호만 한 줄 남겨 주세요.
       </div>
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-        <a className="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener">📄 견본 PDF 열기</a>
+        <견본단추 무엇="report">📄 견본 보기</견본단추>{/* 📄 G818 새 창(PDF) 대신 사이트 안 큰 그림 · ✕ 닫기 */}
         <Link className="btn line" to="/qna">💬 맵톡에 신청하기</Link>
       </div>
     </div>

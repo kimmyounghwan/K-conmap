@@ -5,6 +5,7 @@
    만드는 화면(/report/agency)은 소장님 것입니다. 여기에는 그 길을 적지 않습니다.
    쓰는 곳: 분석 › 발주기관 탭 · 기관 화면(/agency/{기관}) 맨 아래. */
 import { Link } from 'react-router-dom'
+import 견본단추 from './견본보기.jsx'
 
 export default function 기관견본줄({ name }) {
   return (
@@ -19,7 +20,7 @@ export default function 기관견본줄({ name }) {
         견본을 먼저 보시고, 받아 보고 싶으시면 맵톡에 <b>기관 이름</b>만 한 줄 남겨 주세요.
       </div>
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-        <a className="btn primary" href="/agency-sample.pdf" target="_blank" rel="noopener">📄 견본 PDF 열기</a>
+        <견본단추 무엇="agency">📄 견본 보기</견본단추>{/* 📄 G818 새 창(PDF) 대신 사이트 안 큰 그림 · ✕ 닫기 */}
         <Link className="btn line" to="/qna">💬 맵톡에 신청하기</Link>
       </div>
     </div>

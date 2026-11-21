@@ -11,6 +11,7 @@ import { wasBaked } from '../lib/baked.js'
 import { 업체확보예가 } from '../tools/확보예가.jsx'   /* 🎯 G181 */
 import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위는 lib/애드핏.js */
 import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
+import 견본단추 from '../견본보기.jsx'   /* 📄 G818 견본 — 새 창(PDF) 대신 사이트 안 큰 그림 · ✕ 닫기 */
 
 /**
  * /corp/{업체키} — 업체 성적표. 분석 탭 안에 갇혀 있던 화면을 주소로 꺼낸 것입니다.
@@ -134,7 +135,7 @@ export default function CorpPage() {
           {' '}<b>A4 성적표</b>는 무료로 신청받습니다.
         </p>
         <div className="btn-row">
-          <a className="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener">📄 성적표 견본 보기</a>
+          <견본단추 무엇="report">📄 성적표 견본 보기</견본단추>{/* 📄 G818 새 창(PDF) 대신 사이트 안 큰 그림 · ✕ 닫기 */}
           <Link className="btn ghost" to="/qna">💬 맵톡에 신청하기</Link>
         </div>
       </div>

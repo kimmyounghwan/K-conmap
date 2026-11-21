@@ -61,6 +61,19 @@
 .cn-sample a{display:flex;flex-direction:column;flex:1 1 140px;max-width:240px;border:1px solid #d1d5db;border-radius:10px;overflow:hidden;text-decoration:none;color:#047857;background:#fff;font-size:13px;font-weight:700}
 .cn-sample img{display:block;width:100%;height:auto;aspect-ratio:1.414;object-fit:contain;background:#fff;border-bottom:1px solid #e5e7eb}
 .cn-sample a span{padding:6px 9px;line-height:1.35;word-break:keep-all}
+/* 📄 G818 견본 크게 보기 덮개 — 새 창(PDF) 대신 이 쪽 안에서 · 위 · 아래 ✕ 닫기 · Esc · 뒤로(앱으로 열었을 때 PDF 가 화면을 덮어 닫을 데가 없던 것) */
+.cnv-ov{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;background:#f3f4f6;color:#111827}
+.cnv-top,.cnv-foot{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;border-color:#e5e7eb;border-style:solid;border-width:0}
+.cnv-top{padding-top:calc(env(safe-area-inset-top,0px) + 8px);border-bottom-width:1px}
+.cnv-foot{justify-content:center;flex-wrap:wrap;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 8px);border-top-width:1px}
+.cnv-top b{flex:1;min-width:0;font-size:15px;line-height:1.35;word-break:keep-all}
+.cnv-x{flex:none;font:inherit;font-size:15px;font-weight:800;min-height:44px;padding:8px 16px;border-radius:10px;border:1px solid #047857;background:#047857;color:#fff;cursor:pointer}
+.cnv-zoom{flex:none;font:inherit;font-size:14px;min-height:44px;padding:8px 12px;border-radius:10px;border:1px solid #d1d5db;background:#fff;color:#111827;cursor:pointer}
+.cnv-body{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;padding:10px}
+.cnv-body img{display:block;width:100%;max-width:1400px;height:auto;margin:0 auto 8px;border:1px solid #e5e7eb;border-radius:6px;background:#fff}
+.cnv-body.big img{width:250%;max-width:none}
+.cnv-note{font-size:12.5px;color:#6b7280;text-align:center;word-break:keep-all}
+.cnv-pdf{font-size:14px;color:#047857;font-weight:700}
 @media(prefers-color-scheme:dark){
   .f input,.f textarea{background:#0e1116;border-color:#333b48;color:#e8eaed}
   .btn{border-color:#3b82f6;background:#161a21;color:#8ab0ff}
@@ -71,6 +84,10 @@
   .cn-gname{color:#34d399}
   .cn-sname{color:#c7d0de}
   .cn-sample a{background:#0e1116;border-color:#333b48;color:#34d399}
+  .cnv-ov{background:#0b0e13;color:#e8eaed}
+  .cnv-top,.cnv-foot{background:#161a21;border-color:#333b48}
+  .cnv-zoom{background:#0e1116;border-color:#333b48;color:#e8eaed}
+  .cnv-pdf{color:#34d399}
 }
 </style>
 <script src="/cn-band.js" defer></script></head><body><div class="wrap"><a class="back" href="/">← K-건설맵으로</a><h1>문의</h1>
@@ -209,12 +226,16 @@
       /* 📐 G694 (11-16) 견본 보기 — 가상 공사 도면 두 장(tools/견본도면.py 가 만든 그림 PDF · 글자 층 없음) · 숨은 셈 |공사연결|견본-<무엇> */
       if (g[0] === '도면 작성대행') {
         var sbox = document.createElement('div'); sbox.className = 'cn-sample'
-        var sname = document.createElement('span'); sname.className = 'cn-sname'; sname.textContent = '📐 견본 보기 — 가상 공사 · 누르면 크게(PDF)'; sbox.appendChild(sname)
+        var sname = document.createElement('span'); sname.className = 'cn-sname'; sname.textContent = '📐 견본 보기 — 가상 공사 · 누르면 크게'; sbox.appendChild(sname)
         ;[['견본_시공상세도', '시공상세도 견본', '시공상세도'], ['견본_가설안전시설배치도', '가설 · 안전시설 배치도 견본', '배치도']].forEach(function (x) {
           var a = document.createElement('a'); a.href = '/cn/' + x[0] + '.pdf'; a.target = '_blank'; a.rel = 'noopener'
           var im = document.createElement('img'); im.src = '/cn/' + x[0] + '_작게.webp'; im.alt = x[1]; im.loading = 'lazy'; im.width = 240; im.height = 170; a.appendChild(im)
           var t = document.createElement('span'); t.textContent = '📄 ' + x[1]; a.appendChild(t)
-          a.onclick = function () { 셈('|공사연결|견본-' + x[2]) }
+          a.onclick = function (e) {   /* 📄 G818 새 창(PDF) 대신 이 쪽 안에서 크게 · ✕ 닫기 */
+            셈('|공사연결|견본-' + x[2])
+            if (e && e.preventDefault) e.preventDefault()
+            견본열기(x[1], '/cn/' + x[0] + '_크게.webp', '/cn/' + x[0] + '.pdf')
+          }
           sbox.appendChild(a)
         })
         gbox.appendChild(sbox)
@@ -234,6 +255,38 @@
   }
   /* 공사 연결 · 서류 작성대행(?k=cn) 이면 메일 갈래(want)만 고른 것으로 — 위 광고 · 사이트 문의 갈래 줄은 그대로 둠(시험_광고문의화면 ⑦ ⑨ 가 그 줄을 봄) */
   var 갈래고침 = function (o) { if (연결) o.want = 고른것 || '공사 연결 · 도면 · 서류 작성대행'; return o }
+  /* 📄 G818 (11-21 소장님 「견본보기 서류대행 닫기가 없어 ㅎㅎ」) 견본 크게 보기 덮개 — 위 · 아래 ✕ 닫기 · Esc · 뒤로 · 🔍 크게(그림 폭 250%) ·
+     앱(바탕화면 아이콘)이 아니면 «📄 PDF 새 창으로» 도(앱에선 안 보임 — PDF 가 앱 화면을 덮어 다시 갇히지 않게) · 시험 tools/시험_견본보기화면.mjs */
+  function 견본열기(제목, 그림, pdf) {
+    if (document.querySelector('.cnv-ov')) return
+    var 앱 = false
+    try { 앱 = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true } catch (e) { /* 없음 */ }
+    var ov = document.createElement('div'); ov.className = 'cnv-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 제목)
+    var top = document.createElement('div'); top.className = 'cnv-top'
+    var tb = document.createElement('b'); tb.textContent = '📐 ' + 제목; top.appendChild(tb)
+    var zoom = document.createElement('button'); zoom.type = 'button'; zoom.className = 'cnv-zoom'; zoom.textContent = '🔍 크게'; top.appendChild(zoom)
+    var body = document.createElement('div'); body.className = 'cnv-body'
+    var im = document.createElement('img'); im.src = 그림; im.alt = 제목; im.width = 2398; im.height = 1696; body.appendChild(im)
+    var note = document.createElement('div'); note.className = 'cnv-note'; note.textContent = '가상 공사 견본입니다 — 실제 시공용이 아닙니다 · 공사마다 같은 꼴로 그려 드립니다.'; body.appendChild(note)
+    var foot = document.createElement('div'); foot.className = 'cnv-foot'
+    var 닫힘 = false, 밀었음 = false, 전 = document.documentElement.style.overflow
+    var 치움 = function () {
+      if (!ov.parentNode) return
+      ov.parentNode.removeChild(ov); document.documentElement.style.overflow = 전
+      window.removeEventListener('popstate', 뒤로); window.removeEventListener('keydown', 글쇠)
+    }
+    var 끝 = function () { if (닫힘) return; 닫힘 = true; if (밀었음 && history.state && history.state.견본) { try { history.back(); return } catch (e) { /* 아래 */ } } 치움() }
+    var 뒤로 = function () { 닫힘 = true; 치움() }
+    var 글쇠 = function (e) { if (e.key === 'Escape') 끝() }
+    var 닫는단추 = function (곳) { var b = document.createElement('button'); b.type = 'button'; b.className = 'cnv-x'; b.textContent = '✕ 닫기'; b.setAttribute('aria-label', '견본 닫기(' + 곳 + ')'); b.onclick = 끝; return b }
+    top.appendChild(닫는단추('위')); foot.appendChild(닫는단추('아래'))
+    if (!앱) { var pa = document.createElement('a'); pa.className = 'cnv-pdf'; pa.href = pdf; pa.target = '_blank'; pa.rel = 'noopener'; pa.textContent = '📄 PDF 새 창으로'; foot.appendChild(pa) }
+    zoom.onclick = function () { var big = body.classList.toggle('big'); zoom.textContent = big ? '🔍 작게' : '🔍 크게'; zoom.setAttribute('aria-pressed', big ? 'true' : 'false') }
+    ov.appendChild(top); ov.appendChild(body); ov.appendChild(foot)
+    document.body.appendChild(ov); document.documentElement.style.overflow = 'hidden'
+    try { history.pushState({ 견본: 1 }, ''); 밀었음 = true } catch (e) { /* 없음 */ }
+    window.addEventListener('popstate', 뒤로); window.addEventListener('keydown', 글쇠)
+  }
   var 셈 = function (k) {
     try {
       if (navigator.webdriver || /bot|crawl|spider|slurp|headless|lighthouse/i.test(navigator.userAgent || '')) return
